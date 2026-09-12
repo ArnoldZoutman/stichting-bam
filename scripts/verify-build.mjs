@@ -22,10 +22,36 @@ const OUT = process.argv[2] || '.output/public'
 const WP_BASE = (process.env.NUXT_WP_BASE || 'https://www.stichting-bam.nl/wp-json').replace(/\/$/, '')
 const FAILURE_LOG = '.build-report/api-failures.jsonl'
 
-/** Ondergrenzen. Onder deze aantallen is de site per definitie kapot. */
-const MIN_PAGES = 9
-const MIN_POSTS = 7
+/**
+ * Ondergrenzen tegen een STUKKE API — niet tegen te weinig redactionele
+ * content. Op 1 gezet, niet op het aantal dat er nu toevallig staat: hoeveel
+ * pagina's, berichten of voorstellingen er zijn verandert gewoon (WordPress
+ * groeit, en berichten worden zelfs van type kunnen wisselen — zie hieronder),
+ * en een harde ondergrens op dat aantal blokkeert dan een verder prima build.
+ * Wat deze drempels WEL moeten vangen: een API die 200 OK teruggeeft met een
+ * lege lijst (`[]`) — geen fout, maar wel een teken dat er iets mis is.
+ *
+ * Dat "0 items terwijl de API niet fout ging" is een ander soort defect dan
+ * "de gegenereerde site mist iets wat de API wél meldt". Dat laatste — de
+ * inhoudelijke controle die er echt toe doet — is de route-inventaris
+ * verderop (secties 4 en 6): die vergelijkt wat de API meldt te bestaan met
+ * wat er daadwerkelijk is gegenereerd, en werkt daardoor vanzelf mee met elk
+ * aantal. Precedent: op 12-09-2026 zijn zes berichten in WordPress omgezet
+ * naar het `event`-posttype (Events Manager); de API ging toen van "8
+ * berichten" naar "1 bericht, 6 voorstellingen", en `MIN_POSTS = 7` keurde
+ * een verder correcte build af. Vandaar deze drempels op 1, niet op een
+ * specifiek aantal.
+ */
+const MIN_PAGES = 1
+const MIN_POSTS = 1
 const MIN_EVENTS = 1
+/**
+ * Paginagrootte voor de berichtenlijst — moet gelijk lopen met `PER_PAGE` in
+ * `components/PostListing.vue`, anders berekent deze check een ander aantal
+ * overzichtspagina's dan de site zelf genereert. Dit is GEEN ondergrens op
+ * content (zoals hierboven) maar een paginering-instelling; hoort dus niet in
+ * dezelfde categorie en verandert niet vanzelf mee met de hoeveelheid berichten.
+ */
 const POSTS_PER_PAGE = 6
 /** Minimale hoeveelheid platte tekst in de body van een contentpagina. */
 const MIN_TEXT_LENGTH = 120
@@ -191,10 +217,12 @@ async function main() {
   if (events.length < MIN_EVENTS) fail(`te weinig voorstellingen uit de API: ${events.length}, verwacht minimaal ${MIN_EVENTS}`)
 
   // ── 2b. Elke bekende paginaslug bij naam ──────────────────────────────────
-  // Het aantal (2) ziet een verwisseling niet: verdwijnt slug A en komt slug B
-  // ervoor in de plaats, dan blijft `pages.length` precies 9 en valt er niets
-  // op. Controleer daarom BEIDE kanten: elke bekende slug moet in de API-lijst
-  // staan, én die staat er niet dubbel zo vaak in als verwacht.
+  // Het aantal alleen ziet een verwisseling niet: verdwijnt slug A en komt
+  // slug B ervoor in de plaats, dan blijft `pages.length` gelijk en valt er
+  // niets op — zeker nu MIN_PAGES een lage, contentonafhankelijke ondergrens
+  // is (zie hierboven) en dus toch al zou slagen. Controleer daarom BEIDE
+  // kanten: elke bekende slug moet in de API-lijst staan, én onbekende slugs
+  // worden gemeld (zie `unknown` verderop).
   const apiSlugs = pages.map((p) => p.slug)
   for (const slug of KNOWN_PAGE_SLUGS) {
     if (!apiSlugs.includes(slug)) fail(`bekende pagina "${slug}" ontbreekt in de API`)
@@ -239,9 +267,9 @@ async function main() {
   // uitvoeringen/index.html (het agenda-overzicht) moet minstens één echte
   // voorstellingstitel bevatten — hetzelfde bewijs als bij de homepage
   // hieronder: dat de agenda daadwerkelijk uit Events Manager is gerenderd en
-  // niet een lege of verouderde pagina is. We eisen er één van de eerste drie
-  // (uit de agenda-lijst hierboven), zodat dit niet faalt zodra de volgorde
-  // in Events Manager wijzigt.
+  // niet een lege of verouderde pagina is. We eisen er één van de (tot) eerste
+  // drie, zodat dit ook werkt met minder dan drie voorstellingen en niet
+  // faalt zodra de volgorde in Events Manager wijzigt.
   const eventTitles = events
     .map((e) => e.title?.rendered?.replace(/<[^>]+>/g, '').trim())
     .filter(Boolean)
@@ -256,9 +284,10 @@ async function main() {
   }
 
   // De homepage moet minstens één echte berichttitel bevatten: bewijs dat de
-  // content bij de build is gerenderd en niet pas na hydratie verschijnt.
-  // We kijken naar de drie nieuwste titels en eisen er één van — de homepage
-  // toont er drie, dus dit faalt niet zodra de volgorde in WordPress wijzigt.
+  // content bij de build is gerenderd en niet pas na hydratie verschijnt. We
+  // kijken naar de (tot) drie nieuwste titels en eisen er één van — dat werkt
+  // ook als er minder dan drie berichten zijn, en faalt niet zodra de
+  // volgorde in WordPress wijzigt.
   const recent = (await api('/wp/v2/posts?per_page=3&_fields=title')).data
     .map((p) => p.title?.rendered?.replace(/<[^>]+>/g, '').trim())
     .filter(Boolean)

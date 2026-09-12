@@ -125,9 +125,8 @@ Het script eindigt met **exit-code 1** zodra één van deze dingen niet klopt:
 | Controle | Faalt bij |
 |---|---|
 | Mislukte API-calls tijdens de build | één of meer regels met `severity: failed` in `.build-report/api-failures.jsonl` |
-| Aantal pagina's uit de API | minder dan 9 |
-| **Elke bekende paginaslug bij naam** | een van de 9 slugs in `KNOWN_PAGE_SLUGS` ontbreekt in de API — vangt een verwisseling/hernoeming die het totaal ongemoeid laat |
-| Aantal berichten uit de API | minder dan 7 |
+| Aantal pagina's, berichten, voorstellingen uit de API | 0 — een lege lijst terwijl de API zelf geen fout gaf |
+| **Elke bekende paginaslug bij naam** | een slug in `KNOWN_PAGE_SLUGS` ontbreekt in de API — vangt een verwisseling/hernoeming die het totaal ongemoeid laat |
 | Homepage-content in de API | `content.rendered` van `home` is leeg of de pagina bestaat niet |
 | Verwachte HTML-bestanden | een route uit de API heeft geen `index.html` in de output |
 | Inhoud per pagina | minder dan 120 tekens tekst in de `<body>`, of geen `<h1>` |
@@ -137,12 +136,23 @@ Het script eindigt met **exit-code 1** zodra één van deze dingen niet klopt:
 
 Het verwachte aantal bestanden wordt **uit de API afgeleid**, niet hardcoded:
 anders zou de build gaan falen om de verkeerde reden zodra er een achtste
-bericht bij komt. De 9 paginaslugs zelf staan wél hardcoded in
+bericht bij komt. De bekende paginaslugs zelf staan wél hardcoded in
 `scripts/verify-build.mjs` (`KNOWN_PAGE_SLUGS`) — bewust een eigen lijst, niet
 geïmporteerd uit `config/navigation.ts`. Dit script controleert de app; het
 mag niet op een constante van diezelfde app vertrouwen, anders ziet een
 verkeerde wijziging daar de faal-check niet. Verander je een paginaslug in
 WordPress, werk dan **beide plekken** bij.
+
+**De aantal-ondergrenzen (`MIN_PAGES`, `MIN_POSTS`, `MIN_EVENTS`) staan op 1,
+niet op het aantal dat er nu toevallig is.** Ze zijn een vangrail tegen een
+API die 200 OK teruggeeft met een lege lijst — geen contentcheck. Op
+12-09-2026 zijn zes berichten in WordPress omgezet naar het `event`-posttype
+(Events Manager): de API ging toen van "8 berichten" naar "1 bericht, 6
+voorstellingen", en een `MIN_POSTS` die aan het oude aantal vasthield, keurde
+een verder correcte build af. De inhoudelijke controle die er echt toe doet
+is de route-inventaris (hieronder, en sectie 4/6 in het script): die
+vergelijkt wat de API meldt te bestaan met wat er daadwerkelijk is
+gegenereerd, en werkt daardoor vanzelf mee met elk aantal.
 
 `api()` in `verify-build.mjs` doet zelf 2–3 pogingen met backoff bij een
 tijdelijke 5xx — dezelfde reden als `nitro.prerender.concurrency`: WordPress
@@ -157,7 +167,7 @@ hoeveel er zijn, hoeveel daarvan inhoudelijk getest worden (`checkHtml`, dus
 
 | Categorie | Getest? | Waarom (niet) |
 |---|---|---|
-| 9 pagina's, nieuwsoverzicht + paginering, berichtdetails, `404.html` | ja | `checkHtml` per bestand |
+| Pagina's, nieuwsoverzicht + paginering, berichtdetails, voorstellingdetails, `404.html` | ja | `checkHtml` per bestand |
 | `robots.txt`, `sitemap.xml`, `.htaccess` | nee | geen HTML-pagina's; alleen bestaan gecontroleerd |
 | `200.html` | nee | Nitro's automatische SPA-fallback voor statische hosts; niet aangeroepen door `.htaccess`, dus inert op Apache |
 | `_payload.json` per route | nee | hoort bij een al inhoudelijk geteste HTML-pagina en deelt dezelfde databron |
