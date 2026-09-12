@@ -1,0 +1,118 @@
+name: Build en deploy
+
+# Vier manieren om een build te starten:
+# - push naar main: de gewone weg na een codewijziging
+# - repository_dispatch (wp-publish): afgevuurd door de mu-plugin op de
+#   WordPress-server zodra iemand publiceert (zie prompt 2a)
+# - schedule: vangnet voor als die webhook een keer stilvalt. Een falende
+#   webhook merkt niemand; zo is het ergste geval "morgen live om 02:00" in
+#   plaats van "nooit"
+# - workflow_dispatch: handmatig starten, met een dry-run-optie om de eerste
+#   keer te controleren wat er zou gebeuren zonder iets te uploaden
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [wp-publish]
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run: alleen tonen wat de FTP-deploy zou doen, niets uploaden'
+        type: boolean
+        default: false
+
+# De site die na een geslaagde, niet-dry-run deploy niet mag zijn stukgemaakt.
+# Los van NUXT_WP_BASE/WP_API_BASE (waartegen gebouwd wordt): dit is altijd de
+# ECHTE productie-WordPress, ongeacht welke API-bron de build gebruikte.
+env:
+  PRODUCTION_WP_BASE: https://cms.stichting-bam.nl/wp-json
+  EXPECTED_PAGE_COUNT: 9
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Yarn 4 via corepack
+        run: corepack enable
+
+      - name: Install (frozen lockfile)
+        run: yarn install --immutable
+
+      - name: Build, verify en klaarzetten in dist/
+        run: yarn release
+        env:
+          # Basis-URL van de WP REST API om tegen te bouwen. In productie
+          # hetzelfde adres als PRODUCTION_WP_BASE, maar via een secret zodat
+          # een acceptatie-run tegen een andere WordPress kan bouwen zonder
+          # deze workflow te wijzigen.
+          NUXT_WP_BASE: ${{ secrets.WP_API_BASE }}
+          # Zonder deze env-variabele vallen canonicals, OG-URL's, robots.txt
+          # en sitemap.xml terug op http://localhost:3000 (zie README) — een
+          # build die daarmee slaagt is een stille fout, geen succesvolle.
+          NUXT_PUBLIC_SITE_URL: https://www.stichting-bam.nl
+
+      # `yarn release` faalt (exit-code 1) zodra generate, de faal-check, of
+      # het klaarzetten in dist/ mislukt. Elke stap hieronder draait pas na
+      # een GESLAAGDE vorige stap (GitHub Actions' standaardgedrag: de job
+      # stopt bij de eerste mislukte stap) — er is dus geen aparte `if` nodig
+      # om te garanderen dat er nooit geüpload wordt na een mislukte build.
+
+      - name: Build bewaren als artefact (voor terugvallen op een vorige versie)
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-build-${{ github.run_number }}
+          path: dist/
+          retention-days: 30
+          # Zonder dit slaat upload-artifact dotfiles over — en dist/.htaccess
+          # (ErrorDocument, canonieke redirects, cache-headers) is het
+          # belangrijkste bestand in de build. Zonder deze vlag is het
+          # rollback-artefact hieronder een build die niet werkt.
+          include-hidden-files: true
+
+      - name: FTP-deploy (alleen gewijzigde bestanden)
+        id: deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          server-dir: public_html/
+          local-dir: dist/
+          # public_html/cms/ is de document root van de WordPress-installatie
+          # op cms.stichting-bam.nl — een APARTE site. Nooit aanraken.
+          dangerous-clean-slate: false
+          exclude: |
+            cms/**
+            cms
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+
+      - name: Controle — heeft de deploy WordPress geraakt?
+        # Draait niet bij een dry-run: dan is er niets geüpload om op te controleren.
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run == true) }}
+        run: |
+          set -euo pipefail
+          response="$(curl -sf --retry 3 --retry-delay 5 \
+            "${PRODUCTION_WP_BASE}/wp/v2/pages?per_page=100&_fields=slug")"
+          count="$(echo "$response" | node -e '
+            let d ="";
+            process.stdin.on("data", c => d += c).on("end", () => {
+              console.log(JSON.parse(d).length)
+            })
+          ')"
+          echo "WordPress meldt ${count} pagina('s) op ${PRODUCTION_WP_BASE}."
+          if [ "$count" != "$EXPECTED_PAGE_COUNT" ]; then
+            echo "::error::Verwachtte ${EXPECTED_PAGE_COUNT} pagina's op ${PRODUCTION_WP_BASE}, kreeg ${count}. De deploy kan WordPress (public_html/cms/) hebben geraakt — direct onderzoeken."
+            exit 1
+          fi

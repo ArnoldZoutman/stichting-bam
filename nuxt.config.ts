@@ -92,8 +92,13 @@ export default defineNuxtConfig({
       // Een route die faalt MOET de build laten mislukken. Een geslaagde build
       // met een lege site zou de goede versie overschrijven.
       failOnError: true,
-      // 404.html is nodig voor ErrorDocument in .htaccess.
-      routes: ['/404.html'],
+      // 404.html is nodig voor ErrorDocument in .htaccess, maar Nitro
+      // rendert die specifieke naam altijd als een client-only SPA-shell
+      // (leeg totdat hydratie draait — zie .claude/VALKUILEN.md). Daarom
+      // wordt ook `/404` geprerenderd: een gewone pagina (`pages/404.vue`)
+      // die WEL gewoon server-side gerenderd wordt. `scripts/finalize-404.mjs`
+      // kopieert die inhoud na het genereren over de lege `404.html` heen.
+      routes: ['/404.html', '/404'],
       // WordPress staat op shared hosting en geeft `508 Loop Detected` zodra
       // je er parallel op los gaat. Met de standaardinstelling (8 routes
       // tegelijk, geen pauze) liep de build daar tegenaan: /api/page/home

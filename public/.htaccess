@@ -25,19 +25,29 @@ DirectoryIndex index.html
   RewriteEngine On
 
   # ── Canonieke vorm ────────────────────────────────────────────────────────
-  # De HTTPS- en www-redirects slaan localhost over, zodat de output lokaal met
-  # een gewone Apache te testen is zonder een aparte variant van dit bestand.
-  # Op de hosting is HTTP_HOST nooit localhost, dus daar gelden ze altijd.
+  # `public_html/cms/` is de document root van de WordPress-installatie op
+  # cms.stichting-bam.nl — een APARTE site, maar wel een submap van deze map.
+  # Apache voegt `.htaccess` van bovenliggende mappen samen met submappen, dus
+  # ErrorDocument/Options/Header/mod_expires-directives hieronder gelden ook
+  # daar. mod_rewrite-regels doen dat NIET zodra WordPress zijn eigen
+  # `RewriteEngine On` heeft (elke `RewriteEngine On` in een submap begint een
+  # nieuwe keten, niets uit een bovenliggende map wordt overgenomen) — maar
+  # reken daar niet op als enige vangrail: de regels hieronder matchen daarom
+  # expliciet op onze eigen hostnamen (`stichting-bam.nl` / `www.`), nooit op
+  # "is geen www" of "is geen localhost". Zo'n negatieve vorm matcht namelijk
+  # óók cms.stichting-bam.nl en stuurt WordPress door naar het hoofddomein.
+  # Met een expliciete allowlist werkt lokaal testen op `localhost` vanzelf
+  # (die host matcht geen van beide condities), zonder aparte uitzondering.
 
-  # 1. Forceer HTTPS.
-  RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:[0-9]+)?$ [NC]
+  # 1. Forceer HTTPS, alleen op onze eigen hosts.
+  RewriteCond %{HTTP_HOST} ^(www\.)?stichting-bam\.nl$ [NC]
   RewriteCond %{HTTPS} !=on
   RewriteRule ^(.*)$ https://www.stichting-bam.nl/$1 [R=301,L]
 
-  # 2. Forceer de www-variant.
-  RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:[0-9]+)?$ [NC]
-  RewriteCond %{HTTP_HOST} !^www\. [NC]
-  RewriteRule ^(.*)$ https://www.stichting-bam.nl/$1 [R=301,L]
+  # 2. Forceer de www-variant (apex -> www). Verboden vorm: een conditie op
+  #    "ontbreekt www" (`!^www\.`) — die geldt ook voor cms.stichting-bam.nl.
+  RewriteCond %{HTTP_HOST} ^stichting-bam\.nl$ [NC]
+  RewriteRule ^ https://www.stichting-bam.nl%{REQUEST_URI} [L,R=301]
 
   # 3. Strip de trailing slash (behalve op de site-root), zodat /over-ons/
   #    doorverwijst naar /over-ons.
@@ -112,5 +122,13 @@ ErrorDocument 404 /404.html
 
 # Verberg dit bestand zelf.
 <Files ".htaccess">
+  Require all denied
+</Files>
+
+# De FTP-deploy (SamKirkland/FTP-Deploy-Action) zet dit bestand in server-dir
+# om bij te houden welke bestanden al geüpload zijn — een volledige
+# bestandsinventaris van de site, en dus niet iets om publiek opvraagbaar te
+# laten staan.
+<Files ".ftp-deploy-sync-state.json">
   Require all denied
 </Files>

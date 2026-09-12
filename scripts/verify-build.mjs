@@ -29,23 +29,67 @@ const POSTS_PER_PAGE = 6
 /** Minimale hoeveelheid platte tekst in de body van een contentpagina. */
 const MIN_TEXT_LENGTH = 120
 
+/**
+ * De 9 paginaslugs zoals ze bij het schrijven van dit script in WordPress
+ * bestaan. Bewust HARDCODED en NIET geïmporteerd uit `config/navigation.ts`
+ * (`knownPageSlugs`): dit script controleert de app, dus het mag niet
+ * vertrouwen op een constante die de app zelf ook gebruikt — een verkeerde
+ * wijziging dáár zou anders ongemerkt blijven. Verander je een paginaslug in
+ * WordPress, werk dan BEIDE plekken bij.
+ *
+ * Dit is de aanscherping op `MIN_PAGES`: een aantal van 9 alleen ziet een
+ * verwisselde of hernoemde pagina niet — het totaal klopt dan nog steeds.
+ */
+const KNOWN_PAGE_SLUGS = [
+  'home',
+  'over-ons',
+  'uitvoeringen',
+  'hart-voor-bam',
+  'locaties',
+  'categorieen',
+  'tags',
+  'mijn-reserveringen',
+  'uitvoeringen-urinetown-de-musical-bedankt',
+]
+
 const problems = []
 const notes = []
 
 function fail(msg) { problems.push(msg) }
 function note(msg) { notes.push(msg) }
 
-/** Haalt JSON op en faalt luid bij een status buiten 2xx. */
-async function api(path) {
+/**
+ * Haalt JSON op en faalt luid bij een status buiten 2xx.
+ *
+ * Twee of drie pogingen bij een transiente 5xx: WordPress draait op dezelfde
+ * shared host als de prerender, en `nitro.prerender.concurrency: 2` verkleint
+ * de kans op `508 Loop Detected` maar sluit hem niet uit (zie
+ * `.claude/VALKUILEN.md`, punt 1). Eén hik mag de faal-check niet laten falen
+ * — maar een structureel kapotte API (4xx, of 5xx die blijft) moet dat wel.
+ */
+async function api(path, attempts = 3) {
   const url = `${WP_BASE}${path}`
-  let res
-  try {
-    res = await fetch(url)
-  } catch (error) {
-    throw new Error(`kon ${url} niet bereiken: ${error.message}`)
+  let lastError
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    let res
+    try {
+      res = await fetch(url)
+    } catch (error) {
+      lastError = new Error(`kon ${url} niet bereiken: ${error.message}`)
+    }
+    if (res && res.ok) return { data: await res.json(), headers: res.headers }
+    if (res && res.status < 500) {
+      // Clientfout: nogmaals proberen heeft geen zin, dit is een echte fout.
+      throw new Error(`${url} gaf HTTP ${res.status} ${res.statusText}`)
+    }
+    if (res) lastError = new Error(`${url} gaf HTTP ${res.status} ${res.statusText}`)
+
+    if (attempt < attempts) {
+      note(`${url} gaf een tijdelijke fout (poging ${attempt}/${attempts}: ${lastError.message}), nieuwe poging na backoff`)
+      await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** (attempt - 1)))
+    }
   }
-  if (!res.ok) throw new Error(`${url} gaf HTTP ${res.status} ${res.statusText}`)
-  return { data: await res.json(), headers: res.headers }
+  throw lastError
 }
 
 /** Platte tekst uit de body, zonder script/style, om "lege app-div" te herkennen. */
@@ -129,6 +173,22 @@ async function main() {
   if (pages.length < MIN_PAGES) fail(`te weinig pagina's uit de API: ${pages.length}, verwacht minimaal ${MIN_PAGES}`)
   if (posts.length < MIN_POSTS) fail(`te weinig berichten uit de API: ${posts.length}, verwacht minimaal ${MIN_POSTS}`)
 
+  // ── 2b. Elke bekende paginaslug bij naam ──────────────────────────────────
+  // Het aantal (2) ziet een verwisseling niet: verdwijnt slug A en komt slug B
+  // ervoor in de plaats, dan blijft `pages.length` precies 9 en valt er niets
+  // op. Controleer daarom BEIDE kanten: elke bekende slug moet in de API-lijst
+  // staan, én die staat er niet dubbel zo vaak in als verwacht.
+  const apiSlugs = pages.map((p) => p.slug)
+  for (const slug of KNOWN_PAGE_SLUGS) {
+    if (!apiSlugs.includes(slug)) fail(`bekende pagina "${slug}" ontbreekt in de API`)
+  }
+  const unknown = apiSlugs.filter((s) => !KNOWN_PAGE_SLUGS.includes(s))
+  if (unknown.length) {
+    // Geen faal: een nieuwe pagina is geen kapotte build. Wel melden, want de
+    // faal-check kent hem dan nog niet bij naam.
+    note(`nieuwe, nog onbekende pagina('s) in de API: ${unknown.join(', ')} — voeg toe aan KNOWN_PAGE_SLUGS`)
+  }
+
   // ── 3. Homepage-content in de API ─────────────────────────────────────────
   // Let op: dit controleert de RUWE content.rendered uit WordPress, niet de
   // gerenderde uitvoer. De pagina `home` bevat alleen een sliderplugin-shortcode
@@ -171,7 +231,12 @@ async function main() {
   }
 
   // ── 5. 404-pagina en losse bestanden ──────────────────────────────────────
-  for (const file of ['404.html', 'robots.txt', 'sitemap.xml', '.htaccess']) {
+  // 404.html moet ECHTE, geprerenderde inhoud hebben — geen client-only shell
+  // die pas na hydratie tekst toont (zie .claude/VALKUILEN.md). `checkHtml`
+  // eist een <h1> en voldoende platte tekst in de body; een lege
+  // `<div id="__nuxt"></div>`-shell haalt dat niet en faalt hier dus terecht.
+  checkHtml('404.html', { mustContain: ['Pagina niet gevonden'] })
+  for (const file of ['robots.txt', 'sitemap.xml', '.htaccess']) {
     if (!existsSync(join(OUT, file))) fail(`ontbreekt: ${file}`)
   }
 
@@ -181,6 +246,25 @@ async function main() {
   const found = expected.filter((rel) => existsSync(join(OUT, rel))).length
   console.log(`HTML-bestanden: ${found} van ${expected.length} verwachte routes aanwezig`)
   if (found < expected.length) fail(`${expected.length - found} verwachte HTML-bestand(en) ontbreken`)
+
+  // ── 7. Route-inventaris ────────────────────────────────────────────────────
+  // Eén lijst: wat wordt er gegenereerd, wat daarvan wordt hierboven inhoudelijk
+  // getest (checkHtml), en waarom is dat verschil er. Aantallen komen uit de
+  // API en het bestandssysteem, niet hardcoded — anders raakt deze inventaris
+  // zelf de eerstvolgende keer verouderd.
+  const paginationRoutes = Math.max(0, listingPages - 1)
+  const inventory = [
+    { categorie: 'Pagina\'s (uit API)', aantal: pages.length, getest: pages.length, waarom: 'elke slug uit KNOWN_PAGE_SLUGS + checkHtml per bestand' },
+    { categorie: 'Nieuwsoverzicht /nieuws + /nieuws/pagina/<n>', aantal: 1 + paginationRoutes, getest: 1 + paginationRoutes, waarom: 'checkHtml per paginanummer, afgeleid van X-WP-TotalPages' },
+    { categorie: 'Berichtdetail /nieuws/<slug>', aantal: posts.length, getest: posts.length, waarom: 'checkHtml per bericht' },
+    { categorie: '404.html', aantal: 1, getest: 1, waarom: 'checkHtml — moet écht geprerenderd zijn, zie sectie 5' },
+    { categorie: 'robots.txt, sitemap.xml, .htaccess', aantal: 3, getest: 0, waarom: 'alleen bestaan gecontroleerd: geen HTML-pagina\'s, dus geen <h1>/tekstcheck van toepassing' },
+    { categorie: '200.html', aantal: existsSync(join(OUT, '200.html')) ? 1 : 0, getest: 0, waarom: 'Nitro\'s automatische SPA-fallback voor statische hosts; ongebruikt op Apache (niet aangeroepen door .htaccess) en daarom niet inhoudelijk getest' },
+    { categorie: '_payload.json per route', aantal: found, getest: 0, waarom: 'hoort bij een al geteste HTML-pagina en deelt dezelfde databron; apart testen zou hetzelfde nog een keer controleren' },
+    { categorie: '_nuxt/** (JS/CSS-bundels)', aantal: '—', getest: 0, waarom: 'build-assets, geen routes; werking wordt gecontroleerd met de headless-Chrome-hydratietest uit .claude/VALKUILEN.md, niet hier' },
+  ]
+  console.log('\nRoute-inventaris:')
+  for (const r of inventory) console.log(`  ${String(r.aantal).padStart(3)}  ${r.categorie} — getest: ${r.getest} — ${r.waarom}`)
 
   // ── Rapport ───────────────────────────────────────────────────────────────
   console.log('')

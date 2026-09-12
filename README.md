@@ -126,16 +126,42 @@ Het script eindigt met **exit-code 1** zodra één van deze dingen niet klopt:
 |---|---|
 | Mislukte API-calls tijdens de build | één of meer regels met `severity: failed` in `.build-report/api-failures.jsonl` |
 | Aantal pagina's uit de API | minder dan 9 |
+| **Elke bekende paginaslug bij naam** | een van de 9 slugs in `KNOWN_PAGE_SLUGS` ontbreekt in de API — vangt een verwisseling/hernoeming die het totaal ongemoeid laat |
 | Aantal berichten uit de API | minder dan 7 |
 | Homepage-content in de API | `content.rendered` van `home` is leeg of de pagina bestaat niet |
 | Verwachte HTML-bestanden | een route uit de API heeft geen `index.html` in de output |
 | Inhoud per pagina | minder dan 120 tekens tekst in de `<body>`, of geen `<h1>` |
 | Server-side gerenderd | de titel van het nieuwste bericht staat niet in `index.html` |
-| Losse bestanden | `404.html`, `robots.txt`, `sitemap.xml` of `.htaccess` ontbreekt |
+| 404-pagina | `404.html` mist een `<h1>`, te weinig tekst, of niet de tekst "Pagina niet gevonden" — vangt een teruggevallen SPA-shell |
+| Losse bestanden | `robots.txt`, `sitemap.xml` of `.htaccess` ontbreekt |
 
 Het verwachte aantal bestanden wordt **uit de API afgeleid**, niet hardcoded:
 anders zou de build gaan falen om de verkeerde reden zodra er een achtste
-bericht bij komt.
+bericht bij komt. De 9 paginaslugs zelf staan wél hardcoded in
+`scripts/verify-build.mjs` (`KNOWN_PAGE_SLUGS`) — bewust een eigen lijst, niet
+geïmporteerd uit `config/navigation.ts`. Dit script controleert de app; het
+mag niet op een constante van diezelfde app vertrouwen, anders ziet een
+verkeerde wijziging daar de faal-check niet. Verander je een paginaslug in
+WordPress, werk dan **beide plekken** bij.
+
+`api()` in `verify-build.mjs` doet zelf 2–3 pogingen met backoff bij een
+tijdelijke 5xx — dezelfde reden als `nitro.prerender.concurrency`: WordPress
+staat op dezelfde shared host en `508 Loop Detected` blijft mogelijk. Een
+echte clientfout (4xx) of een 5xx die aanhoudt, faalt nog steeds direct.
+
+### Route-inventaris
+
+`yarn verify` sluit af met een lijst van elke categorie gegenereerde routes:
+hoeveel er zijn, hoeveel daarvan inhoudelijk getest worden (`checkHtml`, dus
+`<h1>` + minimale tekst), en waarom. Kort samengevat:
+
+| Categorie | Getest? | Waarom (niet) |
+|---|---|---|
+| 9 pagina's, nieuwsoverzicht + paginering, berichtdetails, `404.html` | ja | `checkHtml` per bestand |
+| `robots.txt`, `sitemap.xml`, `.htaccess` | nee | geen HTML-pagina's; alleen bestaan gecontroleerd |
+| `200.html` | nee | Nitro's automatische SPA-fallback voor statische hosts; niet aangeroepen door `.htaccess`, dus inert op Apache |
+| `_payload.json` per route | nee | hoort bij een al inhoudelijk geteste HTML-pagina en deelt dezelfde databron |
+| `_nuxt/**` (JS/CSS-bundels) | nee | build-assets, geen routes; werking wordt met headless Chrome getest (zie `.claude/VALKUILEN.md`), niet met een tekstcheck |
 
 Twee dingen om te weten:
 
@@ -169,7 +195,8 @@ redirect oplevert.
 Wat er in staat:
 
 - `ErrorDocument 404 /404.html` — door Nuxt gegenereerd via
-  `nitro.prerender.routes`
+  `nitro.prerender.routes`, ná `finalize-404.mjs` een echte geprerenderde
+  pagina (zie "Wat niet werkt")
 - HTTPS en de `www`-variant geforceerd met een 301
 - `/over-ons/` → 301 naar `/over-ons`
 - `DirectorySlash Off` plus een rewrite die `/over-ons` rechtstreeks uit
@@ -180,17 +207,168 @@ Wat er in staat:
   anders zien bezoekers na een deploy de oude pagina
 - `Options -Indexes`, en `.htaccess` zelf is niet opvraagbaar
 
-De HTTPS- en `www`-redirects slaan `localhost` over, zodat je de output lokaal
-met een gewone Apache kunt testen zonder een tweede variant van dit bestand te
-onderhouden.
+De HTTPS- en `www`-redirects matchen **expliciet op onze eigen hostnamen**
+(`^(www\.)?stichting-bam\.nl$` / `^stichting-bam\.nl$`), niet op een negatieve
+vorm als "geen www" of "geen localhost". Reden: `public_html/cms/` — de
+WordPress-installatie op `cms.stichting-bam.nl` — is een **submap** van
+`public_html/`, en Apache voegt `.htaccess` van bovenliggende mappen samen met
+submappen. Een conditie als `RewriteCond %{HTTP_HOST} !^www\.` matcht dus ook
+`cms.stichting-bam.nl` en zou WordPress naar het hoofddomein doorsturen zodra
+die regel daar zou gelden. mod_rewrite-regels erven weliswaar niet over zodra
+WordPress zijn eigen `RewriteEngine On` heeft (elke `RewriteEngine On` in een
+submap begint een nieuwe keten), maar daar wordt bewust niet op geleund als
+enige vangrail — vandaar de expliciete allowlist. `ErrorDocument`, `Options`,
+`Header` en `mod_expires` erven wél gewoon over naar `public_html/cms/`; zie
+de comment boven het rewrite-blok in `public/.htaccess`.
 
-> **De 404-pagina heeft JavaScript nodig voor zijn inhoud.** Apache geeft de
-> juiste 404-status en levert `404.html`, maar dat bestand is een lege shell:
-> Nuxt genereert `404.html` als client-side fallback. De foutmelding verschijnt
-> na hydratie (geverifieerd in een browser: "404 — Pagina niet gevonden", nul
-> console-errors). Voor crawlers is de statuscode wat telt, dus dit is
-> acceptabel; wil je een 404 die ook zonder JavaScript tekst toont, dan moet
-> daar een echte geprerenderde pagina voor komen.
+Met een expliciete allowlist op de hostnaam werkt lokaal testen op `localhost`
+vanzelf (die host matcht geen van beide condities), zonder aparte
+uitzondering — dat scheelde eerder een tweede variant van dit bestand.
+
+**Bij controle bleek er een verboden vorm te staan.** Vóór deze wijziging was
+regel 2 `RewriteCond %{HTTP_HOST} !^www\.` (met alleen een localhost-
+uitzondering) — precies het geval hierboven. Vervangen door de expliciete
+apex-match. `Options -Indexes` en `DirectorySlash Off` stonden al goed en zijn
+ongewijzigd; die combinatie kan zonder `-Indexes` een directory listing
+blootleggen, dus dat is bevestigd, niet toegevoegd.
+
+> **De 404-pagina heeft geen JavaScript meer nodig voor zijn inhoud.** Nitro
+> rendert een route met de exacte naam `404.html` altijd als een client-only
+> SPA-shell, ongeacht `ssr`-instellingen — dat leverde een lege
+> `<div id="__nuxt"></div>` op die pas na hydratie tekst toonde. Opgelost door
+> `pages/404.vue` (een gewone, wél server-side gerenderde pagina op `/404`) en
+> `scripts/finalize-404.mjs`, dat na `nuxt generate` de gerenderde inhoud van
+> `/404/index.html` over de lege `404.html` heen kopieert en de tussenmap
+> opruimt. Draait automatisch mee in `yarn generate`/`yarn build`/`yarn release`.
+>
+> `finalize-404.mjs` verwijdert daarna ook alle `<script>`- en
+> `modulepreload`-tags uit die gekopieerde HTML: zonder JavaScript valt er
+> voor dit ene bestand toch niets te hydrateren (Apache serveert het voor een
+> willekeurig pad, niet voor `/404` waar het voor gebouwd is), en zo is
+> "zonder JavaScript-afhankelijkheid" ook letterlijk waar in plaats van
+> alleen in de praktijk. De inline `<style>`-tags (kritieke CSS) blijven
+> staan, dus de pagina oogt hetzelfde.
+>
+> Geverifieerd met een lokale Apache (zie `.claude/VALKUILEN.md`) en headless
+> Chrome: een onbekende URL geeft status 404, de echte tekst staat er
+> meteen, `location.href` blijft het opgevraagde (niet-bestaande) pad — geen
+> `<script>`-element in de respons, dus ook geen hydratie en geen
+> console-warnings.
+
+## Automatische deploy (GitHub Actions)
+
+`.github/workflows/build-deploy.yml` bouwt en deployt automatisch. Vier
+manieren om hem te starten:
+
+| Trigger | Waarom |
+|---|---|
+| `push` naar `main` | de gewone weg na een codewijziging |
+| `repository_dispatch` (`wp-publish`) | afgevuurd door de mu-plugin op de WordPress-server bij publiceren (hoort bij prompt 2a) |
+| `schedule` (`0 2 * * *`) | vangnet: een webhook die stilvalt merkt niemand, zo is het ergste geval "morgen live" in plaats van "nooit" |
+| `workflow_dispatch` | handmatig starten, met een `dry_run`-optie om te zien wat er zou gebeuren zonder te uploaden |
+
+De job: checkout → Node LTS → `yarn install --immutable` → `yarn release` →
+**alleen bij succes** een artefact van `dist/` bewaren en FTP-deployen. Omdat
+elke stap in GitHub Actions standaard pas draait na een geslaagde vorige stap,
+is er geen aparte voorwaarde nodig om te garanderen dat er nooit geüpload
+wordt na een mislukte build — een falende `yarn release` (exit-code 1) stopt
+de job vanzelf vóór de deploy-stap.
+
+### Secrets
+
+Geen van deze staat in de repository, ook niet als voorbeeldwaarde:
+
+| Secret | Gebruikt voor |
+|---|---|
+| `FTP_HOST` | `web0087.zxcs.nl` |
+| `FTP_USER` | `arnold@stichting-bam.nl` |
+| `FTP_PASSWORD` | — |
+| `WP_API_BASE` | `NUXT_WP_BASE` tijdens de build (zie "API-base wijzigen"); in productie `https://cms.stichting-bam.nl/wp-json` |
+
+Lokaal draaien gebruikt `.env` (zie `.env.example`), niet deze secrets.
+
+### Deploy-doel en wat nooit wordt geraakt
+
+Deploy-artefact is `dist/`, doel is `public_html/` op hetzelfde pakket als
+`public_html/cms/` — de document root van de WordPress-installatie op
+`cms.stichting-bam.nl`. Dat is een **aparte site**. De FTP-stap sluit hem
+expres uit (`exclude: ['cms/**', 'cms']`) en synchroniseert nooit destructief
+(`dangerous-clean-slate: false`): alleen bestanden die in `dist/` staan worden
+geüpload of overschreven, er wordt nooit iets buiten die lijst verwijderd.
+
+Ná elke niet-dry-run deploy controleert de workflow dat
+`https://cms.stichting-bam.nl/wp-json/wp/v2/pages` nog precies 9 items geeft.
+Slaat dat om, dan heeft de deploy WordPress geraakt en faalt de workflow
+zodat dat meteen zichtbaar is. Het aantal (9) staat letterlijk in de workflow
+(`EXPECTED_PAGE_COUNT`); komt er legitiem een 10e pagina bij, werk dat dan
+bij — een `>=` in plaats van een exacte match zou een verwisseling dan
+missen, precies het probleem dat deze controle moet vangen.
+
+> **Bij de allereerste deploy staat er op `public_html/` nog een tijdelijke
+> `.htaccess` met een 302 naar het subdomein.** Die moet **handmatig**
+> verwijderd worden vóórdat de eerste automatische deploy iets oplevert —
+> anders wint die 302 het van de `.htaccess` die deze workflow aanlevert.
+> Buiten scope van deze workflow om te bouwen; alleen om nu voor te
+> waarschuwen.
+
+### Terugvallen op een vorige versie
+
+Een oudere workflow-run **opnieuw draaien bouwt een nieuwe build vanuit de
+HUIDIGE WordPress-content** — dat rolt de code terug, niet de content. Voor
+een echte terugval naar een eerdere PUBLICATIE:
+
+1. Elke geslaagde run bewaart zijn `dist/` als artefact
+   (`static-build-<run-nummer>`, 30 dagen bewaard, mét dotfiles —
+   `include-hidden-files: true`, anders zou `dist/.htaccess` ontbreken en zou
+   dit artefact juist het bestand missen dat de site laat werken). Zoek in de
+   Actions-tab de laatst bekende goede run op.
+2. Download dat artefact (zip van de inhoud van `dist/`).
+3. Upload die inhoud handmatig naar `public_html/` (dezelfde FTPS-gegevens als
+   de workflow gebruikt) — dit gaat buiten de workflow om, bewust: een
+   automatische "deploy dit oude artefact opnieuw"-knop zou zelf weer een
+   destructieve actie zijn die evengoed fout kan gaan.
+
+Een deploy zonder terugweg is geen deploy; vandaar dat elke run zijn eigen
+artefact achterlaat, ook als er geen probleem is.
+
+### Dry-run
+
+`workflow_dispatch` met `dry_run: true` laat de FTP-actie zien wat er zou
+gebeuren (`dry-run` staat aan bij `SamKirkland/FTP-Deploy-Action`) zonder iets
+te uploaden. De WordPress-controle hierboven slaat dan ook over — er is dan
+niets gedeployed om te controleren. Gebruik dit bij de eerste keer draaien.
+
+> **Controleer bij die eerste (dry-run) run expliciet of `.htaccess` in de
+> bestandslijst van de FTP-actie staat.** Dat bestand regelt ErrorDocument, de
+> canonieke redirects en de cache-headers — zonder is de site kapot, ook al
+> lijkt de deploy geslaagd. Er zijn bekende meldingen dat deze actie
+> dotfiles soms overslaat (afhankelijk van de FTP-server); dat is dan ook de
+> reden dat de tijdelijke 302 hierboven pas handmatig weg moet ná die
+> controle, niet automatisch bij "de eerste run is groen".
+
+### GitHub schakelt stille schedules uit
+
+GitHub deactiveert een `schedule`-trigger automatisch als de repository **60
+dagen** geen enkele commit heeft gehad — en dat gebeurt zonder melding.
+Content komt hier vooral binnen via `repository_dispatch`, dus deze repo kan
+maanden zonder commit zitten. Het vangnet dat hierboven bedoeld is voor "de
+webhook viel stil" kan zo zelf stilvallen, op precies dezelfde manier. Check
+in de Actions-tab (Settings → Actions → zie de laatste schedule-run) of de
+schedule nog actief is als er lang niets is gecommit.
+
+### Zelf getest, lokaal
+
+- **Onbereikbare `WP_API_BASE` faalt vóór de upload.**
+  `NUXT_WP_BASE=https://onbereikbaar.invalid/wp-json yarn release` breekt af
+  in de `prerender:routes`-hook in `nuxt.config.ts` (`getaddrinfo ENOTFOUND`),
+  exit-code 1, `dist/` blijft ongewijzigd. Omdat de FTP-stap in de workflow ná
+  `yarn release` komt, kan die dan niet draaien.
+- **Een ontbrekend HTML-bestand faalt de faal-check.** `over-ons/` tijdelijk
+  aan de kant zetten in `.output/public` en `yarn verify` draaien geeft
+  exit-code 1 met `ontbreekt: over-ons/index.html`. Verdwijnt een pagina uit
+  de API zélf (in plaats van alleen de output), dan vangt de aparte
+  `KNOWN_PAGE_SLUGS`-check dat met "bekende pagina … ontbreekt in de API" —
+  dat is precies het verschil tussen deze twee checks (zie "De faal-check").
 
 ## API-base wijzigen
 
