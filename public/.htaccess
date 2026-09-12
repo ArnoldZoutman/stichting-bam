@@ -40,8 +40,13 @@ DirectoryIndex index.html
   # (die host matcht geen van beide condities), zonder aparte uitzondering.
 
   # 1. Forceer HTTPS, alleen op onze eigen hosts.
+  #    LET OP: NIET `RewriteCond %{HTTPS} !=on` gebruiken. Vimexx handelt TLS
+  #    af vóór Apache; mod_rewrite ziet %{HTTPS} daardoor als "off", ook bij
+  #    een https-request, en dan redirect deze regel eeuwig naar zichzelf.
+  #    De proxy zet wel X-Forwarded-Proto en X-Forwarded-Port.
   RewriteCond %{HTTP_HOST} ^(www\.)?stichting-bam\.nl$ [NC]
-  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  RewriteCond %{HTTP:X-Forwarded-Port} !=443
   RewriteRule ^(.*)$ https://www.stichting-bam.nl/$1 [R=301,L]
 
   # 2. Forceer de www-variant (apex -> www). Verboden vorm: een conditie op
