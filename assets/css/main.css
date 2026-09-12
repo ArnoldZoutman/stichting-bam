@@ -1,0 +1,307 @@
+/* Basisstijl van de frontend. Plain CSS met custom properties; geen framework. */
+
+:root {
+  --kleur-tekst: #1c1b1a;
+  --kleur-tekst-zacht: #55514c;
+  --kleur-achtergrond: #ffffff;
+  --kleur-vlak: #f4f2ef;
+  --kleur-rand: #e2ddd6;
+  --kleur-accent: #a8341f;
+  --kleur-accent-donker: #7d2617;
+
+  --breedte-tekst: 46rem;
+  --breedte-pagina: 72rem;
+
+  --ruimte-xs: 0.5rem;
+  --ruimte-s: 1rem;
+  --ruimte-m: 1.75rem;
+  --ruimte-l: 3rem;
+  --ruimte-xl: 5rem;
+
+  --lettertype: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  --lettertype-kop: Georgia, 'Times New Roman', serif;
+
+  --radius: 3px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--lettertype);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--kleur-tekst);
+  background: var(--kleur-achtergrond);
+}
+
+a {
+  color: var(--kleur-accent);
+}
+
+a:hover {
+  color: var(--kleur-accent-donker);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--breedte-pagina);
+  margin-inline: auto;
+  padding-inline: var(--ruimte-s);
+}
+
+/* Toegankelijkheid: skiplink naar de hoofdinhoud. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--kleur-tekst);
+  color: #fff;
+  padding: var(--ruimte-xs) var(--ruimte-s);
+  z-index: 100;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* ---------- Header ---------- */
+
+.site-header {
+  border-bottom: 1px solid var(--kleur-rand);
+  background: var(--kleur-achtergrond);
+}
+
+.site-header__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ruimte-s);
+  padding-block: var(--ruimte-s);
+}
+
+.site-header__logo {
+  font-family: var(--lettertype-kop);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--kleur-tekst);
+  text-decoration: none;
+}
+
+.site-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ruimte-m);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-nav a {
+  color: var(--kleur-tekst);
+  text-decoration: none;
+  font-size: 0.9375rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding-block: 0.25rem;
+  border-bottom: 2px solid transparent;
+}
+
+.site-nav a:hover,
+.site-nav a.router-link-active {
+  border-bottom-color: var(--kleur-accent);
+  color: var(--kleur-accent);
+}
+
+/* ---------- Pagina-opbouw ---------- */
+
+.page-header {
+  padding-block: var(--ruimte-l) var(--ruimte-m);
+}
+
+.page-header h1 {
+  font-family: var(--lettertype-kop);
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.15;
+  margin: 0;
+}
+
+.page-header__meta {
+  color: var(--kleur-tekst-zacht);
+  font-size: 0.9375rem;
+  margin-top: var(--ruimte-xs);
+}
+
+.page-hero {
+  margin-block: var(--ruimte-m);
+}
+
+.page-hero img {
+  width: 100%;
+  border-radius: var(--radius);
+}
+
+main {
+  min-height: 50vh;
+  padding-bottom: var(--ruimte-xl);
+}
+
+/* Melding bij pagina's zonder renderbare content. */
+.content-notice {
+  max-width: var(--breedte-tekst);
+  margin-block: var(--ruimte-m);
+  padding: var(--ruimte-m);
+  background: var(--kleur-vlak);
+  border-left: 3px solid var(--kleur-rand);
+  border-radius: var(--radius);
+  color: var(--kleur-tekst-zacht);
+}
+
+.content-notice p {
+  margin: 0;
+}
+
+/* ---------- Berichtenoverzicht ---------- */
+
+.post-list {
+  display: grid;
+  gap: var(--ruimte-l);
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.post-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--kleur-rand);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--kleur-achtergrond);
+}
+
+.post-card__image {
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  background: var(--kleur-vlak);
+}
+
+.post-card__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.post-card__body {
+  padding: var(--ruimte-s);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ruimte-xs);
+  flex: 1;
+}
+
+.post-card__body h2 {
+  font-family: var(--lettertype-kop);
+  font-size: 1.25rem;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.post-card__body h2 a {
+  color: var(--kleur-tekst);
+  text-decoration: none;
+}
+
+.post-card__body h2 a:hover {
+  color: var(--kleur-accent);
+}
+
+.post-card__date {
+  color: var(--kleur-tekst-zacht);
+  font-size: 0.875rem;
+}
+
+.post-card__excerpt {
+  color: var(--kleur-tekst-zacht);
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+/* ---------- Paginering ---------- */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ruimte-m);
+  margin-top: var(--ruimte-l);
+}
+
+.pagination__status {
+  color: var(--kleur-tekst-zacht);
+  font-size: 0.9375rem;
+}
+
+.button,
+.pagination a {
+  display: inline-block;
+  padding: 0.55rem 1.1rem;
+  border: 1px solid var(--kleur-accent);
+  border-radius: var(--radius);
+  color: var(--kleur-accent);
+  text-decoration: none;
+  font-size: 0.9375rem;
+}
+
+.button:hover,
+.pagination a:hover {
+  background: var(--kleur-accent);
+  color: #fff;
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  border-top: 1px solid var(--kleur-rand);
+  background: var(--kleur-vlak);
+  padding-block: var(--ruimte-m);
+  color: var(--kleur-tekst-zacht);
+  font-size: 0.9375rem;
+}
+
+.site-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ruimte-s);
+  justify-content: space-between;
+}
+
+/* ---------- Foutpagina ---------- */
+
+.error-page {
+  text-align: center;
+  padding-block: var(--ruimte-xl);
+}
+
+.error-page h1 {
+  font-family: var(--lettertype-kop);
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  margin-bottom: var(--ruimte-xs);
+}

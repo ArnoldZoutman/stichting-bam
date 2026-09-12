@@ -1,0 +1,20 @@
+node_modules
+
+# Yarn 4 (node-modules-linker): alleen de metadata die je wél wilt committen.
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+.nuxt
+.output
+.build-report
+.data
+dist
+dist.vorige
+dist.staging
+.env
+*.log
+.DS_Store

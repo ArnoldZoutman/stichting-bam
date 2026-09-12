@@ -1,0 +1,286 @@
+/* ==========================================================================
+   Stijl voor de content die uit de WP REST API komt.
+   ==========================================================================
+
+   Dit is BEWUST NIET wp-block-library.css. Op stichting-bam.nl komt geen
+   enkele `wp-block-*`-klasse voor: de site draait op WPBakery Page Builder
+   met het Onioneye "qoon"-thema. Hieronder staan precies de klassen die na
+   inventarisatie van alle 9 pagina's en 7 berichten daadwerkelijk in
+   `content.rendered` voorkomen, plus de semantische tags die erin zitten
+   (p, h2-h4, ul/li, blockquote, hr, img, iframe, strong/em).
+
+   De volledige inventarisatie staat in server/utils/wp-content.ts.
+   ========================================================================== */
+
+.wp-content {
+  max-width: var(--breedte-tekst);
+}
+
+/* Blokken die de volle breedte mogen gebruiken. */
+.wp-content .wp-figure,
+.wp-content .wp-embed-responsive {
+  max-width: none;
+}
+
+/* ---------- Basistypografie ---------- */
+
+.wp-content > *:first-child {
+  margin-top: 0;
+}
+
+.wp-content p {
+  margin-block: 0 var(--ruimte-s);
+}
+
+.wp-content h2,
+.wp-content h3,
+.wp-content h4 {
+  font-family: var(--lettertype-kop);
+  line-height: 1.25;
+  margin-block: var(--ruimte-m) var(--ruimte-xs);
+}
+
+.wp-content h2 {
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
+}
+
+.wp-content h3 {
+  font-size: 1.3rem;
+}
+
+.wp-content h4 {
+  font-size: 1.1rem;
+  font-family: var(--lettertype);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.wp-content ul,
+.wp-content ol {
+  margin-block: 0 var(--ruimte-s);
+  padding-left: 1.4rem;
+}
+
+.wp-content li {
+  margin-bottom: 0.35rem;
+}
+
+.wp-content strong,
+.wp-content b {
+  font-weight: 700;
+}
+
+.wp-content hr {
+  border: 0;
+  border-top: 1px solid var(--kleur-rand);
+  margin-block: var(--ruimte-m);
+}
+
+.wp-content blockquote {
+  margin: var(--ruimte-m) 0;
+  padding: var(--ruimte-s) var(--ruimte-m);
+  border-left: 3px solid var(--kleur-accent);
+  background: var(--kleur-vlak);
+  font-family: var(--lettertype-kop);
+  font-size: 1.15rem;
+  font-style: italic;
+  color: var(--kleur-tekst-zacht);
+}
+
+.wp-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---------- Afbeeldingen ---------- */
+
+/* Uit [vc_single_image] opgeloste afbeeldingen. */
+.wp-content .wp-figure {
+  margin: var(--ruimte-m) 0;
+}
+
+.wp-content .wp-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+}
+
+.wp-content .wp-align-center {
+  margin-inline: auto;
+  text-align: center;
+}
+
+.wp-content .wp-align-right img {
+  margin-left: auto;
+}
+
+/* Thema-wrapper rond inline afbeeldingen (oi_ff_img_holder x49). */
+.wp-content .oi_ff_img_holder {
+  overflow: hidden;
+  border-radius: var(--radius);
+  margin-block: var(--ruimte-s);
+}
+
+.wp-content .oi_ff_img_holder img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transition: transform 0.4s ease;
+}
+
+.wp-content a:hover .oi_ff_img_holder img {
+  transform: scale(1.03);
+}
+
+/* Bootstrap-restant uit het thema (img-responsive x49). */
+.wp-content .img-responsive {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ---------- Video-embeds (uit [vc_video]) ---------- */
+
+.wp-content .wp-embed-responsive {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  margin-block: var(--ruimte-m);
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.wp-content .wp-embed-responsive iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Losse iframes die al in de content stonden. */
+.wp-content > iframe,
+.wp-content p > iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border: 0;
+  margin-block: var(--ruimte-m);
+}
+
+/* ---------- Onioneye-tekstblokken ---------- */
+
+/* oi_vc_text x6: tekstblok met eigen achtergrondkleur (inline style uit WP). */
+.wp-content .oi_vc_text {
+  padding: var(--ruimte-m);
+  border-radius: var(--radius);
+  margin-block: var(--ruimte-m);
+}
+
+.wp-content .oi_vc_text_span {
+  display: block;
+}
+
+/* item_height_x1 / item_height_x2 x3: het thema gebruikt deze voor
+   gelijke kolomhoogtes in een grid. Wij vertalen dat naar een minimale hoogte. */
+.wp-content .item_height_x1 {
+  min-height: 12rem;
+}
+
+.wp-content .item_height_x2 {
+  min-height: 18rem;
+}
+
+/* ---------- Onioneye-koppen ---------- */
+
+/* oi_custom_heading_holder x36 + oi_vc_heading x36 */
+.wp-content .oi_custom_heading_holder {
+  margin-block: var(--ruimte-l) var(--ruimte-m);
+}
+
+.wp-content .oi_vc_heading {
+  margin: 0;
+}
+
+/* De typefout `titile` zit zo in de bron-HTML; bewust overgenomen. */
+.wp-content .oi_icon_titile {
+  font-family: var(--lettertype-kop);
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.wp-content .oi_icon_sub_titile {
+  display: block;
+  font-family: var(--lettertype);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--kleur-tekst-zacht);
+  margin-top: var(--ruimte-xs);
+}
+
+/* oi_heading_icon x35 / oi_heading_icon_center x35: in het originele thema een
+   FontAwesome-icoon boven de kop. Wij laden FontAwesome niet en verwijderen de
+   lege <i>-elementen; de wrapper blijft over als uitlijningshaak. */
+.wp-content .oi_heading_icon_center {
+  text-align: center;
+}
+
+/* oi_heading_border x35 + oi_border_position_bottom x70: sierlijn onder de kop. */
+.wp-content .oi_heading_border {
+  display: block;
+}
+
+.wp-content .oi_border_position_bottom::after {
+  content: '';
+  display: block;
+  width: 3rem;
+  height: 2px;
+  background: var(--kleur-accent);
+  margin-top: var(--ruimte-s);
+}
+
+.wp-content .oi_heading_icon_center .oi_border_position_bottom::after,
+.wp-content .oi_border_position_bottom.oi_heading_icon_center::after {
+  margin-inline: auto;
+}
+
+/* oi_border_position_none x1: expliciet geen sierlijn. */
+.wp-content .oi_border_position_none::after {
+  display: none;
+}
+
+/* ---------- Knoppen ---------- */
+
+/* oi_vc_button x9 */
+.wp-content .oi_vc_button {
+  display: inline-block;
+  padding: 0.65rem 1.4rem;
+  background: var(--kleur-accent);
+  color: #fff;
+  border-radius: var(--radius);
+  text-decoration: none;
+  font-size: 0.9375rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-block: var(--ruimte-xs);
+}
+
+.wp-content .oi_vc_button:hover {
+  background: var(--kleur-accent-donker);
+  color: #fff;
+}
+
+/* ---------- Word-plakresten ----------
+   p1, s2 en Apple-converted-space komen uit tekst die vanuit Word/Pages is
+   geplakt. Er valt niets zinnigs te stylen; we neutraliseren ze zodat ze de
+   typografie hierboven niet in de weg zitten. */
+
+.wp-content .p1,
+.wp-content .s2,
+.wp-content .Apple-converted-space {
+  font: inherit;
+  color: inherit;
+}
