@@ -302,6 +302,22 @@ async function main() {
     }
   }
 
+  // De homepage toont de min(3, aantal voorstellingen) meest recente
+  // voorstellingen (zie pages/index.vue). Verwacht aantal komt uit
+  // `events.length` zelf, niet hardcoded op 3 — anders faalt deze check om
+  // dezelfde reden als de drempels die eerder al eens verouderden (zie
+  // MIN_PAGES/MIN_POSTS hierboven): bij minder dan drie voorstellingen zou
+  // een vaste "3" een verder correcte build afkeuren.
+  const expectedHomeEventLinks = Math.min(3, events.length)
+  if (expectedHomeEventLinks > 0) {
+    const homeFile = join(OUT, 'index.html')
+    const homeHtml = existsSync(homeFile) ? readFileSync(homeFile, 'utf8') : ''
+    const linkedSlugs = events.filter((e) => homeHtml.includes(`/uitvoeringen/${e.slug}`))
+    if (linkedSlugs.length < expectedHomeEventLinks) {
+      fail(`index.html bevat links naar ${linkedSlugs.length} voorstelling(en), verwacht minimaal ${expectedHomeEventLinks} (min(3, ${events.length} voorstellingen in de API)) — het voorstellingenblok op de homepage is niet (volledig) gerenderd`)
+    }
+  }
+
   // ── 5. 404-pagina en losse bestanden ──────────────────────────────────────
   // 404.html moet ECHTE, geprerenderde inhoud hebben — geen client-only shell
   // die pas na hydratie tekst toont (zie .claude/VALKUILEN.md). `checkHtml`

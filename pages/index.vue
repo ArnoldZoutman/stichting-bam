@@ -26,6 +26,29 @@ const { data: posts } = await useFetch('/api/posts', {
   default: () => ({ items: [], page: 1, totalPages: 0, total: 0 }),
 })
 
+const { data: events } = await useFetch('/api/events', {
+  key: 'home-events',
+  // Zelfde reden als bij `posts`/`home` hierboven: een falende agenda-call
+  // mag de rest van de startpagina niet laten crashen. Een ECHTE mislukking
+  // wordt nog steeds vastgelegd door server/utils/build-report.ts en laat de
+  // faal-check falen (zie scripts/verify-build.mjs) — dit vangt 'm alleen op
+  // voor de rendering zelf.
+  default: () => ({ upcoming: [], past: [] }),
+})
+
+/**
+ * De drie meest recente voorstellingen, aankomend of geweest door elkaar,
+ * aflopend op datum. Zelfde databron als /uitvoeringen — `/api/events`, dus
+ * dezelfde `getEventList()` in server/utils/wp-documents.ts — alleen hier
+ * samengevoegd en herordend: een aankomende voorstelling heeft een datum in
+ * de toekomst en staat daardoor vanzelf bovenaan.
+ */
+const recentEvents = computed(() =>
+  [...events.value.upcoming, ...events.value.past]
+    .sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''))
+    .slice(0, 3),
+)
+
 /**
  * De sitebeschrijving in WordPress is leeg en `home` heeft geen tekst, dus er
  * is geen eigen omschrijving voor deze pagina. In plaats van er een te
@@ -58,6 +81,16 @@ useWpSeo({
     </div>
 
     <WpContent v-if="home && !home.isEmpty" :html="home.html" />
+
+    <section v-if="recentEvents.length">
+      <h2>Uitvoeringen</h2>
+      <ul class="event-list">
+        <EventCard v-for="event in recentEvents" :key="event.id" :event="event" />
+      </ul>
+      <p style="margin-top: var(--ruimte-m)">
+        <NuxtLink class="button" to="/uitvoeringen">Alle voorstellingen</NuxtLink>
+      </p>
+    </section>
 
     <section v-if="posts.items.length">
       <h2>Laatste nieuws</h2>
