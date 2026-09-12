@@ -1,4 +1,4 @@
-import type { WpMedia, WpPage, WpPost, ResolvedImage } from './wp-types'
+import type { WpMedia, WpPage, WpPost, WpEvent, ResolvedImage } from './wp-types'
 import { recordApiFailure } from './build-report'
 
 /**
@@ -19,6 +19,12 @@ function wpBase(): string {
 const DOC_FIELDS = 'id,slug,link,date,modified,title,content,excerpt,parent,featured_media'
 const LIST_FIELDS = 'id,slug,link,date,modified,title,excerpt,featured_media,_links,_embedded'
 const MEDIA_FIELDS = 'id,slug,alt_text,mime_type,source_url,media_details'
+
+/** De `event_*`-velden komen van `wordpress/bam-events-rest.php`, niet van de CPT zelf. */
+const EVENT_EXTRA_FIELDS =
+  'event_start_date,event_end_date,event_start_time,event_end_time,event_all_day,event_location_name'
+const EVENT_DOC_FIELDS = `id,slug,link,date,modified,title,content,excerpt,featured_media,${EVENT_EXTRA_FIELDS}`
+const EVENT_LIST_FIELDS = `id,slug,link,date,modified,title,excerpt,featured_media,_links,_embedded,${EVENT_EXTRA_FIELDS}`
 
 /**
  * `_embed` werkt op deze installatie ALLEEN als `_links` ook in `_fields` staat;
@@ -140,6 +146,40 @@ export async function fetchPosts(page: number, perPage: number) {
 
 export async function fetchAllPostSlugs(): Promise<Pick<WpPost, 'slug' | 'modified'>[]> {
   return await wpFetch('/wp/v2/posts', { per_page: 100, _fields: 'slug,modified' })
+}
+
+/**
+ * `/wp/v2/events` bestaat pas nadat `wordpress/bam-events-rest.php` op de
+ * server staat (zet `show_in_rest` op het `event`-posttype, zie dat bestand).
+ * Zolang dat er niet is geeft WordPress hier een 404 — net als bij elke
+ * andere lijst hierboven laten we die fout gewoon omhoog bubbelen: een build
+ * die daardoor faalt is beter dan een build die de agenda stil weglaat.
+ */
+export async function fetchEventBySlug(slug: string): Promise<WpEvent | null> {
+  const events = await wpFetch<WpEvent[]>('/wp/v2/events', {
+    slug,
+    per_page: 1,
+    _fields: EVENT_DOC_FIELDS,
+  })
+  return events[0] ?? null
+}
+
+/**
+ * Alle voorstellingen. Geen paginering: Events Manager op deze site houdt
+ * een archief van voorstellingen bij (op dit moment 7), geen doorlopende
+ * stroom zoals berichten — mocht dat ooit boven de 100 uitkomen, dan is
+ * paginering hier net zo nodig te maken als bij `fetchPosts`.
+ */
+export async function fetchAllEvents(): Promise<WpEvent[]> {
+  return await wpFetch<WpEvent[]>('/wp/v2/events', {
+    per_page: 100,
+    _embed: 1,
+    _fields: EVENT_LIST_FIELDS,
+  })
+}
+
+export async function fetchAllEventSlugs(): Promise<Pick<WpEvent, 'slug' | 'modified'>[]> {
+  return await wpFetch('/wp/v2/events', { per_page: 100, _fields: 'slug,modified' })
 }
 
 /**

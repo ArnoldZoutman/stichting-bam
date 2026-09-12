@@ -9,6 +9,8 @@
  * zouden hier dode configuratie zijn.
  */
 
+import { excludedPageSlugs } from './config/navigation'
+
 /** Basis-URL van de WP REST API. Overschrijfbaar met NUXT_WP_BASE. */
 const WP_BASE = (process.env.NUXT_WP_BASE || 'https://www.stichting-bam.nl/wp-json').replace(/\/$/, '')
 
@@ -29,13 +31,20 @@ async function fetchPrerenderRoutes(): Promise<string[]> {
     return (await res.json()) as T
   }
 
-  const [pages, posts] = await Promise.all([
+  const [pages, posts, events] = await Promise.all([
     get<{ slug: string }[]>('/wp/v2/pages?per_page=100&_fields=slug'),
     get<{ slug: string }[]>('/wp/v2/posts?per_page=100&_fields=slug'),
+    // Bestaat pas nadat wordpress/bam-events-rest.php op de server staat.
+    // Faalt die call, dan gooien we net als bij pagina's/berichten — een
+    // build zonder agenda is precies de halve build die we willen voorkomen.
+    get<{ slug: string }[]>('/wp/v2/events?per_page=100&_fields=slug'),
   ])
 
   if (!pages.length || !posts.length) {
     throw new Error(`WP API gaf een lege lijst: ${pages.length} pagina's, ${posts.length} berichten`)
+  }
+  if (!events.length) {
+    throw new Error(`WP API gaf een lege lijst voorstellingen (0 events)`)
   }
 
   // Aantal overzichtspagina's uit de echte response-header, niet geraden.
@@ -44,12 +53,17 @@ async function fetchPrerenderRoutes(): Promise<string[]> {
   if (!head.ok) throw new Error(`WP API gaf ${head.status} op de berichtenlijst`)
   const totalPages = Number(head.headers.get('x-wp-totalpages') ?? 1)
 
-  const routes = new Set<string>(['/', '/nieuws', '/robots.txt', '/sitemap.xml'])
+  const excluded: readonly string[] = excludedPageSlugs
+  const routes = new Set<string>(['/', '/nieuws', '/uitvoeringen', '/robots.txt', '/sitemap.xml'])
   for (const page of pages) {
-    // `home` wordt op `/` gerenderd.
-    if (page.slug !== 'home') routes.add(`/${page.slug}`)
+    // `home` wordt op `/` gerenderd. Uitgesloten placeholderpagina's (zie
+    // config/navigation.ts) krijgen bewust GEEN route: die worden niet meer
+    // geserveerd, dus ook niet geprerenderd.
+    if (page.slug === 'home' || excluded.includes(page.slug)) continue
+    routes.add(`/${page.slug}`)
   }
   for (const post of posts) routes.add(`/nieuws/${post.slug}`)
+  for (const evt of events) routes.add(`/uitvoeringen/${evt.slug}`)
   for (let n = 2; n <= totalPages; n++) routes.add(`/nieuws/pagina/${n}`)
 
   return [...routes]

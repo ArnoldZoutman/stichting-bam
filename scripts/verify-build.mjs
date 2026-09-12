@@ -25,13 +25,14 @@ const FAILURE_LOG = '.build-report/api-failures.jsonl'
 /** Ondergrenzen. Onder deze aantallen is de site per definitie kapot. */
 const MIN_PAGES = 9
 const MIN_POSTS = 7
+const MIN_EVENTS = 1
 const POSTS_PER_PAGE = 6
 /** Minimale hoeveelheid platte tekst in de body van een contentpagina. */
 const MIN_TEXT_LENGTH = 120
 
 /**
- * De 9 paginaslugs zoals ze bij het schrijven van dit script in WordPress
- * bestaan. Bewust HARDCODED en NIET geïmporteerd uit `config/navigation.ts`
+ * De paginaslugs die deze frontend daadwerkelijk als eigen pagina serveert.
+ * Bewust HARDCODED en NIET geïmporteerd uit `config/navigation.ts`
  * (`knownPageSlugs`): dit script controleert de app, dus het mag niet
  * vertrouwen op een constante die de app zelf ook gebruikt — een verkeerde
  * wijziging dáár zou anders ongemerkt blijven. Verander je een paginaslug in
@@ -39,18 +40,29 @@ const MIN_TEXT_LENGTH = 120
  *
  * Dit is de aanscherping op `MIN_PAGES`: een aantal van 9 alleen ziet een
  * verwisselde of hernoemde pagina niet — het totaal klopt dan nog steeds.
+ *
+ * `uitvoeringen` staat erin: die WP-pagina (id 8) bestaat nog, al wordt de
+ * ROUTE `/uitvoeringen` sinds de Events Manager-koppeling gerenderd door
+ * `pages/uitvoeringen/index.vue` (de agenda), niet meer door die pagina.
  */
 const KNOWN_PAGE_SLUGS = [
   'home',
   'over-ons',
   'uitvoeringen',
   'hart-voor-bam',
-  'locaties',
-  'categorieen',
-  'tags',
-  'mijn-reserveringen',
   'uitvoeringen-urinetown-de-musical-bedankt',
 ]
+
+/**
+ * Paginaslugs die WEL in de API bestaan maar bewust NIET gegenereerd worden:
+ * ze bevatten in het CMS alleen `<p>CONTENTS</p>`, een ticketing-placeholder
+ * zonder betekenis op de statische site (zie config/navigation.ts,
+ * `excludedPageSlugs` — ook hier bewust een eigen, onafhankelijke lijst).
+ * Zonder deze uitzondering zou de generieke "elke pagina uit de API moet een
+ * HTML-bestand hebben"-check (verderop) falen op precies de pagina's die we
+ * expres niet meer bouwen.
+ */
+const EXCLUDED_PAGE_SLUGS = ['mijn-reserveringen', 'locaties', 'categorieen', 'tags']
 
 const problems = []
 const notes = []
@@ -167,11 +179,16 @@ async function main() {
   const { data: posts } = await api('/wp/v2/posts?per_page=100&_fields=slug')
   const { headers } = await api(`/wp/v2/posts?per_page=${POSTS_PER_PAGE}&page=1&_fields=slug`)
   const listingPages = Number(headers.get('x-wp-totalpages') ?? 1)
+  // /wp/v2/events bestaat pas sinds wordpress/bam-events-rest.php; een
+  // 404/lege lijst hier moet de build net zo hard laten falen als een
+  // ontbrekende pagina of bericht — de agenda is geen bijzaak.
+  const { data: events } = await api('/wp/v2/events?per_page=100&_fields=slug,title')
 
-  console.log(`API meldt: ${pages.length} pagina's, ${posts.length} berichten, ${listingPages} overzichtspagina('s)`)
+  console.log(`API meldt: ${pages.length} pagina's, ${posts.length} berichten, ${events.length} voorstelling(en), ${listingPages} overzichtspagina('s)`)
 
   if (pages.length < MIN_PAGES) fail(`te weinig pagina's uit de API: ${pages.length}, verwacht minimaal ${MIN_PAGES}`)
   if (posts.length < MIN_POSTS) fail(`te weinig berichten uit de API: ${posts.length}, verwacht minimaal ${MIN_POSTS}`)
+  if (events.length < MIN_EVENTS) fail(`te weinig voorstellingen uit de API: ${events.length}, verwacht minimaal ${MIN_EVENTS}`)
 
   // ── 2b. Elke bekende paginaslug bij naam ──────────────────────────────────
   // Het aantal (2) ziet een verwisseling niet: verdwijnt slug A en komt slug B
@@ -182,10 +199,11 @@ async function main() {
   for (const slug of KNOWN_PAGE_SLUGS) {
     if (!apiSlugs.includes(slug)) fail(`bekende pagina "${slug}" ontbreekt in de API`)
   }
-  const unknown = apiSlugs.filter((s) => !KNOWN_PAGE_SLUGS.includes(s))
+  const unknown = apiSlugs.filter((s) => !KNOWN_PAGE_SLUGS.includes(s) && !EXCLUDED_PAGE_SLUGS.includes(s))
   if (unknown.length) {
     // Geen faal: een nieuwe pagina is geen kapotte build. Wel melden, want de
-    // faal-check kent hem dan nog niet bij naam.
+    // faal-check kent hem dan nog niet bij naam (en het is niet automatisch
+    // een van de uitgesloten placeholders).
     note(`nieuwe, nog onbekende pagina('s) in de API: ${unknown.join(', ')} — voeg toe aan KNOWN_PAGE_SLUGS`)
   }
 
@@ -205,12 +223,37 @@ async function main() {
 
   // ── 4. Elke verwachte route als echt HTML-bestand ─────────────────────────
   const expected = []
-  for (const p of pages) expected.push(p.slug === 'home' ? 'index.html' : `${p.slug}/index.html`)
+  for (const p of pages) {
+    // Uitgesloten placeholderpagina's worden bewust niet gebouwd (zie
+    // EXCLUDED_PAGE_SLUGS hierboven) — hier geen HTML-bestand voor verwachten.
+    if (EXCLUDED_PAGE_SLUGS.includes(p.slug)) continue
+    expected.push(p.slug === 'home' ? 'index.html' : `${p.slug}/index.html`)
+  }
   expected.push('nieuws/index.html')
   for (let n = 2; n <= listingPages; n++) expected.push(`nieuws/pagina/${n}/index.html`)
   for (const post of posts) expected.push(`nieuws/${post.slug}/index.html`)
+  for (const evt of events) expected.push(`uitvoeringen/${evt.slug}/index.html`)
 
   for (const rel of expected) checkHtml(rel)
+
+  // uitvoeringen/index.html (het agenda-overzicht) moet minstens één echte
+  // voorstellingstitel bevatten — hetzelfde bewijs als bij de homepage
+  // hieronder: dat de agenda daadwerkelijk uit Events Manager is gerenderd en
+  // niet een lege of verouderde pagina is. We eisen er één van de eerste drie
+  // (uit de agenda-lijst hierboven), zodat dit niet faalt zodra de volgorde
+  // in Events Manager wijzigt.
+  const eventTitles = events
+    .map((e) => e.title?.rendered?.replace(/<[^>]+>/g, '').trim())
+    .filter(Boolean)
+    .slice(0, 3)
+
+  if (eventTitles.length) {
+    const overviewFile = join(OUT, 'uitvoeringen', 'index.html')
+    const overviewHtml = existsSync(overviewFile) ? readFileSync(overviewFile, 'utf8') : ''
+    if (!eventTitles.some((t) => overviewHtml.includes(t))) {
+      fail(`uitvoeringen/index.html bevat geen van de voorstellingstitels (${eventTitles.join(' / ')}) — het agenda-overzicht is niet gerenderd`)
+    }
+  }
 
   // De homepage moet minstens één echte berichttitel bevatten: bewijs dat de
   // content bij de build is gerenderd en niet pas na hydratie verschijnt.
@@ -253,10 +296,12 @@ async function main() {
   // API en het bestandssysteem, niet hardcoded — anders raakt deze inventaris
   // zelf de eerstvolgende keer verouderd.
   const paginationRoutes = Math.max(0, listingPages - 1)
+  const renderedPages = pages.length - EXCLUDED_PAGE_SLUGS.length
   const inventory = [
-    { categorie: 'Pagina\'s (uit API)', aantal: pages.length, getest: pages.length, waarom: 'elke slug uit KNOWN_PAGE_SLUGS + checkHtml per bestand' },
+    { categorie: 'Pagina\'s (uit API, min. de uitgesloten placeholders)', aantal: renderedPages, getest: renderedPages, waarom: 'elke slug uit KNOWN_PAGE_SLUGS + checkHtml per bestand; EXCLUDED_PAGE_SLUGS wordt bewust NIET gebouwd' },
     { categorie: 'Nieuwsoverzicht /nieuws + /nieuws/pagina/<n>', aantal: 1 + paginationRoutes, getest: 1 + paginationRoutes, waarom: 'checkHtml per paginanummer, afgeleid van X-WP-TotalPages' },
     { categorie: 'Berichtdetail /nieuws/<slug>', aantal: posts.length, getest: posts.length, waarom: 'checkHtml per bericht' },
+    { categorie: 'Voorstellingdetail /uitvoeringen/<slug> (Events Manager)', aantal: events.length, getest: events.length, waarom: 'checkHtml per voorstelling; /uitvoeringen zelf zit al in de "Pagina\'s"-regel (de WP-pagina met die slug bestaat nog)' },
     { categorie: '404.html', aantal: 1, getest: 1, waarom: 'checkHtml — moet écht geprerenderd zijn, zie sectie 5' },
     { categorie: 'robots.txt, sitemap.xml, .htaccess', aantal: 3, getest: 0, waarom: 'alleen bestaan gecontroleerd: geen HTML-pagina\'s, dus geen <h1>/tekstcheck van toepassing' },
     { categorie: '200.html', aantal: existsSync(join(OUT, '200.html')) ? 1 : 0, getest: 0, waarom: 'Nitro\'s automatische SPA-fallback voor statische hosts; ongebruikt op Apache (niet aangeroepen door .htaccess) en daarom niet inhoudelijk getest' },

@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) {
  * volledige rebuild starten.
  */
 function bam_rebuild_post_types() {
-    return ['post', 'page'];
+    return ['post', 'page', 'event'];
 }
 
 add_action('transition_post_status', 'bam_rebuild_on_status_change', 10, 3);

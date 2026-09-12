@@ -1,6 +1,14 @@
 import * as cheerio from 'cheerio'
 import type { WpMedia } from './wp-types'
-import { fetchMediaByIds, buildSrcSet, wpGet, fetchAllPageSlugs, fetchAllPostSlugs } from './wp-client'
+import {
+  fetchMediaByIds,
+  buildSrcSet,
+  wpGet,
+  fetchAllPageSlugs,
+  fetchAllPostSlugs,
+  fetchAllEventSlugs,
+} from './wp-client'
+import { excludedPageSlugs } from '~~/config/navigation'
 
 /**
  * ============================================================================
@@ -204,11 +212,22 @@ let internalPaths: Set<string> | null = null
 
 async function getInternalPaths(): Promise<Set<string>> {
   if (internalPaths) return internalPaths
-  const paths = new Set<string>(['/', '/nieuws'])
+  const paths = new Set<string>(['/', '/nieuws', '/uitvoeringen'])
   try {
-    const [pages, posts] = await Promise.all([fetchAllPageSlugs(), fetchAllPostSlugs()])
-    for (const page of pages) paths.add(page.slug === 'home' ? '/' : `/${page.slug}`)
+    const [pages, posts, events] = await Promise.all([
+      fetchAllPageSlugs(),
+      fetchAllPostSlugs(),
+      fetchAllEventSlugs(),
+    ])
+    for (const page of pages) {
+      // Uitgesloten placeholderpagina's (zie config/navigation.ts) bestaan
+      // hier niet: een link ernaartoe moet extern blijven, niet naar onze
+      // eigen 404 wijzen.
+      if ((excludedPageSlugs as readonly string[]).includes(page.slug)) continue
+      paths.add(page.slug === 'home' ? '/' : `/${page.slug}`)
+    }
     for (const post of posts) paths.add(`/nieuws/${post.slug}`)
+    for (const evt of events) paths.add(`/uitvoeringen/${evt.slug}`)
   } catch {
     // Niet cachen bij een fout; volgende keer opnieuw proberen. Zolang de
     // lijst ontbreekt blijven alle links extern, wat het veilige gedrag is.
@@ -336,6 +355,32 @@ export async function transformContent(raw: string, siteUrl: string): Promise<Tr
   const html = $.html().trim()
   const text = $.root().text().replace(/\s+/g, ' ').trim()
   return { html, text }
+}
+
+/**
+ * Events Manager wrapt `content.rendered` van een event in zijn eigen
+ * sjabloon: een `em-item-header` met datum/tijd nogmaals als tekst, een "Aan
+ * agenda toevoegen"-dropdown (die zonder JavaScript niet open/dicht kan) en
+ * pas daarna de echte, door de redactie geschreven tekst in
+ * `<section class="em-event-content">`. Wij tonen datum/tijd/locatie al zelf
+ * (uit de `event_*`-velden), dus die header zou alles dubbel laten zien —
+ * vandaar dat alleen de inhoud van die sectie wordt doorgegeven aan
+ * `transformContent()`.
+ *
+ * De eventuele kaartverkoop-knop staat IN die sectie (met een inline
+ * `style="display:none"` zolang de verkoop nog niet gestart is) en overleeft
+ * deze extractie dus gewoon: `transformContent` verwijdert geen
+ * `style`-attributen.
+ *
+ * Bestaat de sectie niet (andere EM-versie, of geen EM-sjabloon toegepast),
+ * dan valt dit terug op de volledige ruwe content: beter een dubbele header
+ * tonen dan een lege pagina.
+ */
+export function extractEventDescription(raw: string): string {
+  if (!raw || !raw.trim()) return ''
+  const $ = cheerio.load(raw, null, false)
+  const section = $('.em-event-content').first()
+  return section.length ? (section.html() ?? '') : raw
 }
 
 /** Strips HTML naar platte tekst, voor meta descriptions. */

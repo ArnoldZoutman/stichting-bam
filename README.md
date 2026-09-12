@@ -311,6 +311,33 @@ missen, precies het probleem dat deze controle moet vangen.
 > Buiten scope van deze workflow om te bouwen; alleen om nu voor te
 > waarschuwen.
 
+### Het WordPress-thema wordt hier niet meegedeployed
+
+`wordpress/theme-bam-minimal/` in deze repo is het thema voor
+`cms.stichting-bam.nl` (zie `wordpress/PLAATSING.md`). Deze workflow raakt
+`public_html/cms/` nooit aan (zie "Deploy-doel en wat nooit wordt geraakt"
+hierboven) — een `git push` naar `main` zet een wijziging aan dat thema dus
+nooit vanzelf op de server. Plaatsen en activeren is en blijft handwerk via de
+File Manager/SFTP, met de stappen in `wordpress/PLAATSING.md`. Vergeet na een
+wijziging aan het thema niet ook de zip in `wordpress/` opnieuw te maken en te
+uploaden — de repo en de server lopen anders stilzwijgend uit elkaar.
+
+### mu-plugins op de WordPress-server
+
+`wp-content/mu-plugins/` op `cms.stichting-bam.nl` hoort deze twee bestanden
+uit `wordpress/` te bevatten (mu-plugins draaien altijd, zonder activatie in
+wp-admin):
+
+| Bestand | Wat het doet |
+|---|---|
+| `bam-rebuild.php` | Stuurt een `repository_dispatch` (`wp-publish`) naar dit repo zodra een `post`, `page` of `event` gepubliceerd, bijgewerkt of gedepubliceerd wordt — de trigger achter deze workflow. Vereist `BAM_GH_DISPATCH_TOKEN` in `wp-config.php` (niet in de repo, zie de comment in het bestand voor scope en omrollen). |
+| `bam-events-rest.php` | Zet het `event`-posttype (Events Manager) in de REST API en voegt datum/tijd/locatie toe. Zie "Voorstellingen (Events Manager)" hieronder. Vereist geen configuratie of secret. |
+
+Beide zijn alleen-lezen richting WordPress en bevatten geen credentials
+richting deze frontend. `wordpress/theme-bam-minimal/` (het thema) en
+`wordpress/PLAATSING.md` (hoe je het plaatst) horen bij hetzelfde
+WordPress-installatie maar zijn geen mu-plugin.
+
 ### Terugvallen op een vorige versie
 
 Een oudere workflow-run **opnieuw draaien bouwt een nieuwe build vanuit de
@@ -430,6 +457,8 @@ daardoor blijven zoals hij was; hij verdwijnt simpelweg uit de output.
 
 - `/` — startpagina
 - `/<slug>` — catch-all naar `/wp/v2/pages?slug=<slug>`; onbekende slug ⇒ echte 404
+- `/uitvoeringen` — agenda, opgebouwd uit Events Manager (niet de WP-pagina met dezelfde slug — zie hieronder)
+- `/uitvoeringen/<slug>` — voorstellingsdetail
 - `/nieuws` — berichtenoverzicht, pagina 1
 - `/nieuws/pagina/<n>` — pagina 2 en verder; aantal pagina's uit `X-WP-TotalPages`
 - `/nieuws/<slug>` — losse berichten
@@ -544,6 +573,81 @@ Alle afbeeldingen in de content krijgen `loading="lazy"` en `decoding="async"`.
 is, wat er per onderdeel nodig is om dat te veranderen, en welke twee punten een
 volledige overstap blokkeren (het `event`-posttype en de homepage-slider).
 
+## Voorstellingen (Events Manager)
+
+De voorstellingen staan in WordPress als custom post type `event` van de
+plugin **Events Manager**, en zijn sinds de mu-plugin
+`wordpress/bam-events-rest.php` beschikbaar via `/wp/v2/events`.
+
+### Wat de mu-plugin toevoegt
+
+`event` staat elders geregistreerd met `show_in_rest => false`. De mu-plugin
+zet dat aan (`rest_base: events`) via de `register_post_type_args`-filter —
+niets anders aan de registratie wijzigt — en voegt met `register_rest_field`
+zes velden toe die de CPT zelf niet heeft (Events Manager bewaart datum, tijd
+en locatie in eigen tabellen, niet in postmeta):
+
+| Veld | Vorm | Opmerking |
+|---|---|---|
+| `event_start_date`, `event_end_date` | `'Y-m-d'` (ISO) | ruwe EM-waarde, niet de Nederlandse weergavenotatie van de plugin |
+| `event_start_time`, `event_end_time` | `'H:i:s'` (ISO) | `null` bij een hele dag |
+| `event_all_day` | boolean | |
+| `event_location_name` | string of `null` | via `EM_Event::get_location()`; `null` als er geen locatie aan het event hangt (komt voor — zie hieronder) |
+
+Alleen lezen, alleen deze velden: **geen boekingen, deelnemers, e-mailadressen
+of prijzen** — die blijven achter de eigen (401-afgeschermde) API van Events
+Manager. Zie de comment bovenaan `bam-events-rest.php` voor de volledige
+afweging.
+
+**Niet elk event heeft een locatie.** Van de 7 voorstellingen op dit moment
+heeft er precies 1 een `event_location_name` (Theater Den Enghel); bij de
+rest staat er geen locatie in Events Manager zelf — soms staat de naam alleen
+als platte tekst in de omschrijving. De frontend toont het locatieveld dus
+alleen als het er is, in plaats van een lege regel.
+
+### Hoe de content wordt opgebouwd
+
+`content.rendered` van een event is niet de kale redactionele tekst, maar
+Events Manager's eigen sjabloon: een `em-item-header` met datum/tijd nogmaals
+als tekst en een "Aan agenda toevoegen"-dropdown die zonder JavaScript niet
+open/dicht kan, gevolgd door de echte tekst in
+`<section class="em-event-content">`. Wij tonen datum/tijd/locatie al zelf
+(uit de velden hierboven), dus `server/utils/wp-content.ts`
+(`extractEventDescription`) geeft alleen de inhoud van die sectie door aan de
+bestaande shortcode-/HTML-transformatie. Bestaat die sectie niet, dan valt dit
+terug op de volledige ruwe content.
+
+Een eventuele kaartverkoop-link staat gewoon IN die sectie en overleeft deze
+extractie: bij "Tegen Tijd" staat er al een "Bestel je kaarten!"-knop
+(`class="oi_vc_button"`, al gestyled) met een inline `style="display:none"`
+zolang de verkoop niet gestart is. Niets in de transformatie verwijdert
+inline `style`-attributen, dus zodra een redacteur die stijl in WordPress
+weghaalt, verschijnt de knop hier vanzelf — precies zoals gevraagd.
+
+### De WP-pagina "uitvoeringen" (id 8) is niet meer de bron
+
+Er bestaat nog een WP-**pagina** met slug `uitvoeringen` — een handmatig
+onderhouden verzamelpagina. `/uitvoeringen` wordt tegenwoordig gerenderd door
+`pages/uitvoeringen/index.vue` (de agenda uit Events Manager); Vue Router
+geeft een statische route voorrang boven de catch-all
+(`pages/[...slug].vue`), dus die WP-pagina wordt niet meer gebruikt voor deze
+route. Bij controle bleek die pagina geen aparte introtekst te bevatten — de
+hele inhoud is een handmatige kopie van dezelfde 6 voorstellingen (teaser +
+afbeelding + "Lees meer"-knop per stuk), dus er was niets unieks om boven het
+gegenereerde overzicht te tonen. De WP-pagina zelf bestaat nog gewoon in de
+API (`KNOWN_PAGE_SLUGS` in `scripts/verify-build.mjs` blijft hem checken);
+alleen de route `/uitvoeringen` gebruikt 'm niet meer.
+
+### Aankomend versus archief
+
+`isUpcoming` wordt bepaald op het moment van de **build** (deze site is
+statisch, dus "nu" bevriest tot de volgende `yarn release`): een voorstelling
+telt als geweest zodra de einddatum/-tijd voorbij is. Op dit moment (build
+tegen de content van vandaag) zijn alle 7 voorstellingen al geweest — de
+agenda is dus vooral een archief, en wordt ook zo getoond: een "Aankomend"-
+sectie die alleen verschijnt als er iets in zit, en een "Archief" dat aflopend
+op datum sorteert (meest recente eerst, net als `/nieuws`).
+
 ## Wat niet werkt of handmatig is
 
 **Het hoofdmenu is handmatig.** `/wp/v2/menu-items`, `/wp/v2/templates` en
@@ -560,27 +664,33 @@ halen. Er is geen vervangende tekst verzonnen: `/` wordt opgebouwd uit wél
 beschikbare API-data (sitenaam uit `/wp-json/` en de laatste berichten). Krijgt
 `home` in WordPress ooit echte content, dan verschijnt die automatisch.
 
-**Pagina's met alleen een plugin-onderdeel.** `locaties`, `categorieen`, `tags`
-en `mijn-reserveringen` bevatten in het CMS letterlijk alleen `<p>CONTENTS</p>`;
-de ticketing-plugin vult ze in de originele frontend. Ze worden getoond met de
-content die er is. Pagina's die na transformatie helemaal leeg zijn, tonen een
-korte melding in plaats van een blanco pagina. Dit is verwacht gedrag, geen bug.
+**Pagina's met alleen een plugin-onderdeel worden uitgesloten, niet getoond.**
+`locaties`, `categorieen`, `tags` en `mijn-reserveringen` bevatten in het CMS
+letterlijk alleen `<p>CONTENTS</p>`; de ticketing-plugin vult ze in de
+originele frontend, maar in de REST API blijft dat de enige inhoud. Deze
+frontend toonde ze lange tijd wél, met "CONTENTS" als zichtbare tekst — zie
+`config/navigation.ts` (`excludedPageSlugs`) en `server/utils/wp-documents.ts`
+(`getPageDocument`): deze vier slugs geven nu een echte 404 in plaats van een
+pagina met alleen dat woord erop, en staan niet in `nitro.prerender.routes`.
+Andere pagina's die na transformatie leeg blijken (bijv. door een verwijderde
+shortcode) tonen nog wel een korte melding in plaats van een blanco pagina —
+dat verschilt van deze vier, die principieel nooit iets zullen tonen.
 
 **De 7 berichten zijn demo-content.** Alle zeven bevatten identieke lorem
 ipsum uit de thema-demo-import (14.330 tekens per stuk). Ze renderen correct,
 maar de meta descriptions zijn daardoor onderling vrijwel gelijk. Dat is een
 contentkwestie in WordPress, niet in deze frontend.
 
-**Links naar uitvoeringspagina's blijven extern.** De pagina `uitvoeringen`
-linkt naar zes onderliggende pagina's
-(`/uitvoeringen/tegen-tijd/`, `/uitvoeringen/karavaan/`, …). Die geven op de
-live site een 200, maar komen in **geen enkel REST-endpoint** voor: ze worden
-door de ticketingplugin gegenereerd en zijn niet als post type geregistreerd
-(`/wp/v2/types` kent alleen `post`, `page` en `attachment`). Ze zijn dus niet
-op te halen, en ticketing valt buiten scope. Deze links worden daarom **niet**
-naar een intern pad herschreven — dat zou een 404 opleveren — maar blijven naar
-de WordPress-site wijzen, waar ze wel werken. Alleen links naar paden die deze
-frontend echt serveert worden intern gemaakt.
+**Links naar voorstellingen zijn sinds de Events Manager-koppeling intern.**
+Zie "Voorstellingen (Events Manager)" hieronder: `/uitvoeringen/<slug>` wordt
+tegenwoordig door deze frontend zelf geserveerd, dus links ernaartoe (in
+content, of handmatig getypt) worden nu wél naar een intern pad herschreven.
+Dit was tot de mu-plugin `bam-events-rest.php` er kwam niet zo — het
+`event`-posttype stond niet in de REST API en die links bleven daarom bewust
+naar de WordPress-site wijzen. Het algemene principe staat nog overeind:
+alleen links naar paden die deze frontend ook echt serveert worden intern
+gemaakt; alles wat hier niet wordt opgehaald (ticketing/reservering zelf)
+blijft naar WordPress wijzen.
 
 **De startpagina heeft geen eigen meta description.** De sitebeschrijving in
 WordPress is leeg en `home` heeft geen tekst. In plaats van een omschrijving te

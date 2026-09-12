@@ -110,6 +110,57 @@ export interface WpTerm {
   taxonomy: string
 }
 
+/**
+ * Het `event`-posttype (Events Manager), zoals `wordpress/bam-events-rest.php`
+ * hem in de REST API zet. De `event_*`-velden komen niet van de CPT zelf maar
+ * zijn door die mu-plugin toegevoegd via `register_rest_field`, rechtstreeks
+ * uit het `EM_Event`-object — vandaar de losse velden in plaats van
+ * postmeta. Datums/tijden zijn de RUWE Events Manager-notatie ('Y-m-d' /
+ * 'H:i:s', al ISO), niet de Nederlandse weergavenotatie van de plugin.
+ *
+ * Alle velden zijn nullable: de mu-plugin geeft bewust `null` in plaats van
+ * een fatal error zodra Events Manager niet actief is of het event niet meer
+ * bestaat (zie de comment in bam-events-rest.php).
+ */
+export interface WpEvent {
+  id: number
+  slug: string
+  link: string
+  date: string
+  modified: string
+  title: WpRendered
+  content: WpRendered
+  excerpt: WpRendered
+  featured_media: number
+  event_start_date: string | null
+  event_end_date: string | null
+  event_start_time: string | null
+  event_end_time: string | null
+  event_all_day: boolean | null
+  event_location_name: string | null
+  _links?: Record<string, unknown>
+  _embedded?: {
+    'wp:featuredmedia'?: WpMedia[]
+  }
+}
+
+/** Datum/tijd/locatie-velden die pagina's en berichten niet hebben. */
+export interface EventFields {
+  startDate: string | null
+  endDate: string | null
+  /** Null bij een event dat de hele dag beslaat, of zonder tijd in Events Manager. */
+  startTime: string | null
+  endTime: string | null
+  allDay: boolean
+  locationName: string | null
+  /**
+   * Bepaald op het moment van de BUILD (deze site is statisch): `true` zodra
+   * de einddatum/-tijd van het event nog niet voorbij is. Bevriest dus tot de
+   * volgende `yarn release`.
+   */
+  isUpcoming: boolean
+}
+
 /** Wat onze eigen /api-routes teruggeven aan de pagina's. */
 export interface ContentDocument {
   id: number
@@ -140,4 +191,21 @@ export interface PostListResult {
   page: number
   totalPages: number
   total: number
+}
+
+/** Wat `/api/event/<slug>` teruggeeft aan de detailpagina. */
+export interface EventDocument extends ContentDocument, EventFields {}
+
+/** Wat `/api/events` teruggeeft aan het agenda-overzicht. */
+export interface EventSummary extends EventFields {
+  id: number
+  slug: string
+  title: string
+  description: string
+  featuredImage: ResolvedImage | null
+}
+
+export interface EventListResult {
+  upcoming: EventSummary[]
+  past: EventSummary[]
 }
