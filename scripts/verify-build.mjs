@@ -57,6 +57,35 @@ const POSTS_PER_PAGE = 6
 const MIN_TEXT_LENGTH = 120
 
 /**
+ * Google Analytics — dezelfde schakelaar als in `nuxt.config.ts`: is
+ * GA_MEASUREMENT_ID gezet, dan hoort de tag in ELKE gegenereerde pagina te
+ * staan; is hij leeg, dan hoort hij NERGENS te staan.
+ *
+ * Die tweede helft is niet overbodig. De afspraak is dat alleen de
+ * deploy-workflow meet en een lokale build nooit; dat is precies het soort
+ * afspraak dat stil sneuvelt als iemand het ID ooit ergens hardcodeert. De
+ * eerste helft vangt het omgekeerde: een productiebuild die stil zónder
+ * analytics de deur uit gaat.
+ *
+ * Beide tags (loader en init) worden gecontroleerd, zodat een half doorgevoerde
+ * wijziging opvalt. De zoekteksten moeten LETTERLIJK meelopen met de snippet in
+ * `nuxt.config.ts` (`analyticsScripts`) — verander je daar de spatiëring, pas
+ * ze dan hier ook aan.
+ *
+ * De verboden zoekteksten zijn bewust specifiek: `data-analytics="ga4"` is een
+ * attribuut dat deze build zelf zet, en `googletagmanager.com/gtag/js` is het
+ * volledige loaderpad. Op een kale `dataLayer` of `googletagmanager.com`
+ * zoeken zou óók aanslaan op een nieuwsbericht dat toevallig over Google Tag
+ * Manager gaat: `content.rendered` uit WordPress komt ongefilterd in de HTML
+ * terecht, en dan keurt de faal-check een prima build af om de verkeerde reden
+ * (vergelijk de drempels bij MIN_PAGES/MIN_POSTS hierboven).
+ */
+const GA_MEASUREMENT_ID = (process.env.GA_MEASUREMENT_ID || '').trim()
+const ANALYTICS_CHECK = GA_MEASUREMENT_ID
+  ? { mustContain: [`googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`, `gtag('config', '${GA_MEASUREMENT_ID}')`] }
+  : { mustNotContain: ['data-analytics="ga4"', 'googletagmanager.com/gtag/js'] }
+
+/**
  * De paginaslugs die deze frontend daadwerkelijk als eigen pagina serveert.
  * Bewust HARDCODED en NIET geïmporteerd uit `config/navigation.ts`
  * (`knownPageSlugs`): dit script controleert de app, dus het mag niet
@@ -142,7 +171,7 @@ function bodyText(html) {
     .trim()
 }
 
-function checkHtml(relPath, { requireH1 = true, mustContain = [] } = {}) {
+function checkHtml(relPath, { requireH1 = true, mustContain = [], mustNotContain = [] } = {}) {
   const file = join(OUT, relPath)
   if (!existsSync(file)) {
     fail(`ontbreekt: ${relPath}`)
@@ -157,6 +186,9 @@ function checkHtml(relPath, { requireH1 = true, mustContain = [] } = {}) {
   }
   for (const needle of mustContain) {
     if (!html.includes(needle)) fail(`${relPath}: mist verwachte inhoud "${needle}"`)
+  }
+  for (const needle of mustNotContain) {
+    if (html.includes(needle)) fail(`${relPath}: bevat "${needle}" terwijl dat er niet in hoort`)
   }
 }
 
@@ -262,7 +294,12 @@ async function main() {
   for (const post of posts) expected.push(`nieuws/${post.slug}/index.html`)
   for (const evt of events) expected.push(`uitvoeringen/${evt.slug}/index.html`)
 
-  for (const rel of expected) checkHtml(rel)
+  // De analytics-controle loopt mee over ELKE verwachte route — de eis is
+  // "op alle pagina's", en dat is met alleen de homepage niet aangetoond.
+  for (const rel of expected) checkHtml(rel, ANALYTICS_CHECK)
+  note(GA_MEASUREMENT_ID
+    ? `analytics: GA_MEASUREMENT_ID=${GA_MEASUREMENT_ID} gezet — tag gecontroleerd op alle ${expected.length} pagina's + 404.html`
+    : 'analytics: GA_MEASUREMENT_ID niet gezet — gecontroleerd dat er in geen enkele pagina een analytics-tag staat')
 
   // uitvoeringen/index.html (het agenda-overzicht) moet minstens één echte
   // voorstellingstitel bevatten — hetzelfde bewijs als bij de homepage
@@ -323,7 +360,13 @@ async function main() {
   // die pas na hydratie tekst toont (zie .claude/VALKUILEN.md). `checkHtml`
   // eist een <h1> en voldoende platte tekst in de body; een lege
   // `<div id="__nuxt"></div>`-shell haalt dat niet en faalt hier dus terecht.
-  checkHtml('404.html', { mustContain: ['Pagina niet gevonden'] })
+  // 404.html hoort de analytics-tag óók te hebben, ook al haalt
+  // `scripts/finalize-404.mjs` daar alle andere script-tags weg: dode links
+  // zijn juist iets wat je wil zien in de statistieken.
+  checkHtml('404.html', {
+    ...ANALYTICS_CHECK,
+    mustContain: ['Pagina niet gevonden', ...(ANALYTICS_CHECK.mustContain ?? [])],
+  })
   for (const file of ['robots.txt', 'sitemap.xml', '.htaccess']) {
     if (!existsSync(join(OUT, file))) fail(`ontbreekt: ${file}`)
   }

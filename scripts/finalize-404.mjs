@@ -26,6 +26,10 @@
  * mismatches"-warning opleveren. De inline `<style>`-tags (de kritieke CSS)
  * blijven staan, dus de pagina oogt identiek; alleen de nu toch nutteloze
  * JS-afhankelijkheid verdwijnt.
+ *
+ * UITZONDERING: tags met `data-analytics` blijven staan. Die horen niet bij
+ * de hydratie (ze zijn onafhankelijk van de Vue-app) en juist op de
+ * 404-pagina is meten nuttig: zo zie je welke dode links bezoekers volgen.
  */
 
 import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
@@ -42,10 +46,12 @@ if (!existsSync(source)) {
 }
 
 const $ = cheerio.load(readFileSync(source, 'utf8'))
-$('script').remove()
+$('script').not('[data-analytics]').remove()
 $('link[rel="modulepreload"]').remove()
 writeFileSync(target, $.html())
 
 rmSync(join(OUT, '404'), { recursive: true, force: true })
 
-console.log(`✔ ${target} vervangen door de geprerenderde inhoud van /404, zonder script-tags (tussenmap opgeruimd).`)
+const kept = $('script[data-analytics]').length
+console.log(`✔ ${target} vervangen door de geprerenderde inhoud van /404, zonder script-tags` +
+  `${kept ? ` (op ${kept} analytics-tag(s) na)` : ''} (tussenmap opgeruimd).`)

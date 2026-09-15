@@ -60,6 +60,12 @@ jobs:
           # en sitemap.xml terug op http://localhost:3000 (zie README) — een
           # build die daarmee slaagt is een stille fout, geen succesvolle.
           NUXT_PUBLIC_SITE_URL: https://www.stichting-bam.nl
+          # Google Analytics 4. ALLEEN hier gezet: dat is wat ervoor zorgt dat
+          # de tag uitsluitend in de gepubliceerde site zit en niet in een
+          # lokale build of `yarn dev`. Geen secret — het meet-ID staat in de
+          # HTML van elke bezoeker — dus bewust een gewone waarde, zodat je aan
+          # dit bestand kunt zien dat en waarmee er gemeten wordt.
+          GA_MEASUREMENT_ID: G-80ZJBF3N04
 
       # `yarn release` faalt (exit-code 1) zodra generate, de faal-check, of
       # het klaarzetten in dist/ mislukt. Elke stap hieronder draait pas na

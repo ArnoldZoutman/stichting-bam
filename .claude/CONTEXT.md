@@ -88,6 +88,7 @@ volledige overstap. Zie `MIGRATIE.md`.
 | Links alleen intern maken als we het pad serveren | Anders worden de plugin-pagina's herschreven naar interne 404's |
 | Yarn 4 met `nodeLinker: node-modules` | npm 10.9.x klapt eruit op Nuxt's peer-deps; Yarn PnP breekt Nuxt (`@nuxt/kit` niet resolvebaar) |
 | Geen ISR/SWR/routeRules/purge | Vereist een draaiende server; zou dode configuratie zijn |
+| GA4 aan/uit via een eigen `GA_MEASUREMENT_ID`, alleen gezet in de deploy-workflow | Alleen de gepubliceerde site mag meten. Bewust NIET afgeleid van `NUXT_PUBLIC_SITE_URL`: die zet je lokaal juist ook op de productie-URL om canonicals/OG/sitemap te controleren, en dan zou die controlebuild echte pageviews sturen |
 
 ## Wat bewust NIET is gedaan
 
@@ -97,6 +98,8 @@ volledige overstap. Zie `MIGRATIE.md`.
 - Een WordPress-plugin of mu-plugin (ook niet om `show_in_rest` aan te zetten —
   dat is een besluit, geen implementatiedetail)
 - De live WordPress-site of het thema aanraken
+- Cookiebanner / consent-gating voor de GA4-tag: die laadt bij iedere bezoeker.
+  Een keuze om bewust te maken, geen vergeten detail (zie README, "Statistieken")
 
 ## Wat nog openstaat
 

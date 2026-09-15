@@ -406,6 +406,22 @@ schedule nog actief is als er lang niets is gecommit.
   de API zélf (in plaats van alleen de output), dan vangt de aparte
   `KNOWN_PAGE_SLUGS`-check dat met "bekende pagina … ontbreekt in de API" —
   dat is precies het verschil tussen deze twee checks (zie "De faal-check").
+- **De analytics-schakelaar, op een echte build.** Twee keer `yarn release`
+  tegen `https://cms.stichting-bam.nl/wp-json`. Mét `GA_MEASUREMENT_ID`:
+  faal-check groen, en alle 15 HTML-bestanden in `dist/` bevatten precies twee
+  `data-analytics`-tags (loader + init) — ook `404.html`, dat verder nul
+  script-tags overhoudt. Zónder die variabele: faal-check groen, en nul
+  treffers op `data-analytics`, `googletagmanager` of het meet-ID in de hele
+  output.
+- **De faal-check zelf faalt ook echt.** Met een mock-API en een nagebouwde
+  outputmap zijn ook de twee foute combinaties gedraaid: tag weg terwijl de
+  variabele gezet is → exit 1 ("mist verwachte inhoud …"); tag aanwezig
+  terwijl de variabele leeg is → exit 1 ("bevat … terwijl dat er niet in
+  hoort").
+- **Geen dubbele `gtag('config')` na hydratie.** Gemeten met headless Chrome
+  (CDP-recept in `.claude/VALKUILEN.md`): na het laden staan er twee
+  `script[data-analytics]`-tags in de DOM en precies één `config`-aanroep in
+  `dataLayer` — de inline snippet draait bij hydratie niet nog een keer.
 
 ## API-base wijzigen
 
@@ -436,6 +452,48 @@ NUXT_PUBLIC_SITE_URL=https://www.stichting-bam.nl yarn release
 
 Zie `.env.example` voor beide variabelen. Er zijn **geen secrets**: alle calls
 richting WordPress zijn anonieme GET-requests op publieke content.
+
+## Statistieken (Google Analytics 4)
+
+De GA4-tag (`G-80ZJBF3N04`) staat in de `<head>` van elke gegenereerde pagina,
+inclusief `404.html`. Hij wordt geplaatst vanuit `app.head.script` in
+`nuxt.config.ts` — niet vanuit `app.vue`, want `404.html` wordt niet door
+`app.vue` gerenderd.
+
+**Alleen de gepubliceerde site meet.** De schakelaar is de env-variabele
+`GA_MEASUREMENT_ID`: is die leeg of niet gezet, dan komt er geen enkele
+analytics-tag in de HTML.
+
+| Waar | `GA_MEASUREMENT_ID` | Tag in de HTML |
+|---|---|---|
+| `yarn dev` | niet gezet | nee |
+| lokale `yarn generate` / `yarn release` | niet gezet (laat leeg in je `.env`) | nee |
+| `.github/workflows/build-deploy.yml` | `G-80ZJBF3N04` | ja |
+
+Waarom een eigen variabele en niet "productie = `NUXT_PUBLIC_SITE_URL` staat op
+de live URL": die zet je lokaal juist óók op de productie-URL als je
+canonicals, OG-tags, `robots.txt` of `sitemap.xml` wil controleren (zie
+"API-base wijzigen"). Zou GA daaraan hangen, dan zou precies zo'n controlebuild
+echte bezoekcijfers vervuilen.
+
+Het meet-ID is geen secret — het staat in de HTML van iedere bezoeker — en
+hoort daarom als gewone waarde in de workflow, niet in GitHub Secrets.
+
+De faal-check controleert **beide kanten** (`scripts/verify-build.mjs`):
+
+- `GA_MEASUREMENT_ID` gezet → de tag moet in élke gegenereerde pagina staan.
+  Vangt een productiebuild die stil zonder analytics de deur uit gaat.
+- niet gezet → er mag nergens `googletagmanager.com` of `dataLayer` in de
+  output staan. Vangt een ID dat ooit alsnog ergens hardcoded raakt.
+
+`scripts/finalize-404.mjs` haalt alle script-tags uit `404.html` (daar valt
+niets te hydrateren), maar laat tags met `data-analytics` bewust staan: juist
+op de 404-pagina wil je zien welke dode links bezoekers volgen.
+
+**Niet geregeld: toestemming vooraf.** Er is geen cookiebanner of
+consent-gating; de tag laadt bij iedere bezoeker. Dat is voor een publieke
+Nederlandse site een bewuste keuze om te maken, geen detail — zie "Buiten
+scope".
 
 ## Architectuur
 
@@ -737,6 +795,9 @@ Reserveringen, ticketing, bestelflow en betalingen; contactformulieren
 (`contact-form-7/v1` is met rust gelaten); schrijven naar WordPress;
 authenticatie en application passwords; migratie of vervanging van WordPress.
 WordPress blijft de bron.
+
+Ook buiten scope: een cookiebanner of consent-gating voor de GA4-tag. Die
+laadt nu bij iedere bezoeker (zie "Statistieken (Google Analytics 4)").
 
 ## Geen credentials
 

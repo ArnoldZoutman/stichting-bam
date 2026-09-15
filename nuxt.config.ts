@@ -15,6 +15,54 @@ import { excludedPageSlugs } from './config/navigation'
 const WP_BASE = (process.env.NUXT_WP_BASE || 'https://www.stichting-bam.nl/wp-json').replace(/\/$/, '')
 
 /**
+ * Google Analytics 4 — meet-ID, ALLEEN gezet in de deploy-workflow.
+ *
+ * De AANWEZIGHEID van deze variabele is de schakelaar: is hij leeg (of niet
+ * gezet), dan komt er geen enkele analytics-tag in de HTML. `yarn dev`,
+ * `yarn generate` en `yarn release` op een werkplek meten dus niets mee; alleen
+ * de build in .github/workflows/build-deploy.yml zet hem.
+ *
+ * BEWUST een eigen variabele en niet afgeleid van NUXT_PUBLIC_SITE_URL: die
+ * wordt lokaal juist óók op de productie-URL gezet om canonicals, OG-tags,
+ * robots.txt en sitemap.xml te controleren (zie .env.example). Zou GA daaraan
+ * hangen, dan zou precies zo'n lokale controlebuild echte pageviews sturen.
+ *
+ * GEEN `NUXT_PUBLIC_`-prefix: dat zou een `runtimeConfig.public`-veld
+ * suggereren dat er niet is. Dit is een build-time beslissing — `app.head`
+ * hieronder wordt één keer bij de build geëvalueerd.
+ *
+ * Het meet-ID is publiek (het staat in de HTML van elke bezoeker) en dus geen
+ * secret; het hoort als gewone env-waarde in de workflow, niet in GitHub
+ * Secrets.
+ */
+const GA_MEASUREMENT_ID = (process.env.GA_MEASUREMENT_ID || '').trim()
+
+/**
+ * De GA4-tags, of een lege lijst als er geen meet-ID is.
+ *
+ * `data-analytics="ga4"` is geen opsmuk: `scripts/finalize-404.mjs` strípt alle
+ * script-tags uit 404.html (hydratie heeft daar geen zin) en herkent aan dit
+ * attribuut welke tags het moet laten staan.
+ */
+const analyticsScripts = GA_MEASUREMENT_ID
+  ? [
+      {
+        async: true,
+        src: `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`,
+        'data-analytics': 'ga4',
+      },
+      {
+        'data-analytics': 'ga4',
+        innerHTML:
+          'window.dataLayer = window.dataLayer || [];' +
+          'function gtag(){dataLayer.push(arguments);}' +
+          "gtag('js', new Date());" +
+          `gtag('config', '${GA_MEASUREMENT_ID}');`,
+      },
+    ]
+  : []
+
+/**
  * Haalt de te genereren routes op uit de API.
  *
  * `crawlLinks` alleen is niet genoeg: een pagina waar nergens naartoe gelinkt
@@ -93,6 +141,10 @@ export default defineNuxtConfig({
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       ],
+      // Staat hier en niet in app.vue: zo zit de tag in de <head> van ELKE
+      // geprerenderde pagina, ook de pagina's die app.vue niet renderen
+      // (404.html). Volgorde blijft zoals hier: eerst de loader, dan de init.
+      script: analyticsScripts,
     },
   },
 
