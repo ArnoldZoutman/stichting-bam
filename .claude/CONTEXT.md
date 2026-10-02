@@ -95,7 +95,8 @@ onbereikbaar. Zie `MIGRATIE.md`.
 | Geen `@nuxt/image` | Bij een statische build haalt het elke WP-afbeelding op en bewerkt die: precies de belasting waar de host 508 op geeft. `srcset` uit WP + juiste `sizes` |
 | Productienummers (I–VI) afgeleid, chronologisch | Events Manager kent geen productienummer (`composables/useProductions.ts`) |
 | Contactgegevens geparsed uit de tekst van "Over ons" | Geen veld of endpoint; parser is tolerant en laat velden weg als de opmaak verandert (`getContactDetails`) |
-| Feature-flags in `app.config.ts` (`newsletter`, `contactFormSubmit`), beide uit | Nieuwsbrief en verzending van het contactformulier zijn nog niet gekozen/gekoppeld |
+| Nieuwsbrief achter `features.newsletter` in `app.config.ts` (uit) | Nog geen nieuwsbrief bevestigd |
+| Contactformulier → Contact Form 7 (REST) op cms, aan zodra `contactForm.cf7FormId` in `app.config.ts` gevuld is | Geen eigen backend; CF7 stond er al, CORS werkt via WordPress zelf. Inrichting: `wordpress/PLAATSING.md` |
 | GA4 aan/uit via een eigen `GA_MEASUREMENT_ID`, alleen gezet in de deploy-workflow | Alleen de gepubliceerde site mag meten. Bewust NIET afgeleid van `NUXT_PUBLIC_SITE_URL`: die zet je lokaal juist ook op de productie-URL om canonicals/OG/sitemap te controleren, en dan zou die controlebuild echte pageviews sturen |
 
 ## Wat bewust NIET is gedaan
@@ -113,10 +114,12 @@ onbereikbaar. Zie `MIGRATIE.md`.
 
 Technisch af, maar deze punten bepalen of het toonbaar is (stand 2 okt 2026):
 
-1. **Contactformulier verstuurt nog niets.** Validatie is af; de verzendroute
-   (Contact Form 7 op cms, externe dienst of alleen mailto) moet gekozen
-   worden. Tot dan staat `features.contactFormSubmit` uit en verwijst het
-   formulier naar het e-mailadres.
+1. **Contactformulier: CF7-formulier nog aanmaken.** De frontend verstuurt
+   naar Contact Form 7, maar het formulier moet in wp-admin worden aangemaakt
+   en het ID in `app.config.ts` (`contactForm.cf7FormId`). Tot dan verwijst
+   het formulier naar het e-mailadres. Stappen, mailinstellingen en
+   spamwering: `wordpress/PLAATSING.md`. Het echte endpoint is nog niet
+   aangeroepen (zou mail versturen).
 2. **Redactioneel in Events Manager/WordPress:** locaties invullen (nu leeg),
    echte nieuwscategorieën aanmaken (nu alleen "Geen categorie" in gebruik),
    lichtere affiches uploaden (Tegen Tijd: 859 KB, geen formaat tussen 200 en

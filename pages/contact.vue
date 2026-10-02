@@ -7,15 +7,16 @@
  * "Contactgegevens" op de WP-pagina "Over ons" (getContactDetails). Wat daar
  * niet staat, ontbreekt hier ook: social links, reactietermijn, kaart/foto.
  *
- * FORMULIER: bewust GEEN eigen backend (statische site op Vimexx). Validatie
- * en toegankelijke foutmeldingen zijn af; het versturen zelf is een TODO
- * achter `features.contactFormSubmit` (app.config.ts). Zolang die uit staat,
- * meldt het formulier na een geldige invoer dat versturen nog niet kan en
- * verwijst het naar het e-mailadres — er gaat dus nooit stil een bericht
- * verloren.
+ * FORMULIER: geen eigen backend (statische site op Vimexx). Versturen gaat
+ * naar Contact Form 7 op cms.stichting-bam.nl (utils/cf7.ts), zodra
+ * `contactForm.cf7FormId` in app.config.ts is ingevuld. Zolang dat `null` is,
+ * meldt het formulier na geldige invoer dat versturen nog niet kan en
+ * verwijst het naar het e-mailadres. Bij elke fout (netwerk, mail_failed,
+ * spam) blijft de invoer staan en volgt dezelfde verwijzing — er gaat nooit
+ * stil een bericht verloren.
  */
 const { data: contact } = await useContactDetails()
-const { features } = useAppConfig()
+const { contactForm } = useAppConfig()
 
 const subjects = [
   'Vraag over een voorstelling',
@@ -27,7 +28,9 @@ const subjects = [
 const form = reactive({ naam: '', email: '', onderwerp: subjects[0]!, bericht: '' })
 type Field = 'naam' | 'email' | 'bericht'
 const errors = reactive<Record<Field, string>>({ naam: '', email: '', bericht: '' })
-const status = ref<'idle' | 'sent' | 'unavailable'>('idle')
+const status = ref<'idle' | 'sending' | 'sent' | 'unavailable' | 'failed'>('idle')
+const failure = ref('')
+const sentNotice = ref<HTMLElement | null>(null)
 const fields = ref<Record<Field, HTMLInputElement | HTMLTextAreaElement | null>>({ naam: null, email: null, bericht: null })
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -42,22 +45,44 @@ function validate(): Field | null {
 }
 
 async function onSubmit() {
+  if (status.value === 'sending') return
   const firstInvalid = validate()
   if (firstInvalid) {
     fields.value[firstInvalid]?.focus()
     return
   }
 
-  if (!features.contactFormSubmit) {
+  if (contactForm.cf7FormId == null) {
     status.value = 'unavailable'
     return
   }
 
-  // TODO(contactformulier): versturen naar de gekozen verzendroute (zie het
-  // redesign-rapport: Contact Form 7-endpoint op cms.stichting-bam.nl of een
-  // externe formulierdienst). Pas na een geslaagde response:
-  //   status.value = 'sent'
-  // en bij een fout een melding tonen, niet stil falen.
+  status.value = 'sending'
+  const result = await submitToCf7(contactForm.cf7Base, contactForm.cf7FormId, {
+    naam: form.naam.trim(),
+    email: form.email.trim(),
+    onderwerp: form.onderwerp,
+    bericht: form.bericht.trim(),
+  })
+
+  if (result.ok) {
+    status.value = 'sent'
+    await nextTick()
+    sentNotice.value?.focus()
+    return
+  }
+
+  if (result.kind === 'invalid' && Object.keys(result.fields).length) {
+    // Meldingen van CF7 zelf (bijv. strengere regels in wp-admin) per veld tonen.
+    for (const key of ['naam', 'email', 'bericht'] as Field[]) errors[key] = result.fields[key] ?? ''
+    status.value = 'idle'
+    const first = (['naam', 'email', 'bericht'] as Field[]).find((f) => errors[f])
+    if (first) fields.value[first]?.focus()
+    return
+  }
+
+  failure.value = result.message
+  status.value = 'failed'
 }
 
 function reset() {
@@ -87,7 +112,7 @@ useWpSeo({
         <div class="contact__form-col">
           <h2>Stuur een bericht</h2>
 
-          <div v-if="status === 'sent'" role="status" class="notice">
+          <div v-if="status === 'sent'" ref="sentNotice" role="status" class="notice" tabindex="-1">
             <p class="notice__title">Bedankt, je bericht is verstuurd.</p>
             <p>We nemen zo snel mogelijk contact met je op.</p>
             <div><BamButton variant="secondary" @click="reset">Nog een bericht</BamButton></div>
@@ -153,12 +178,14 @@ useWpSeo({
             </div>
 
             <div class="form__actions">
-              <BamButton type="submit">Versturen</BamButton>
+              <BamButton type="submit" :aria-disabled="status === 'sending' ? 'true' : undefined">
+                {{ status === 'sending' ? 'Bezig met versturen…' : 'Versturen' }}
+              </BamButton>
             </div>
 
             <div role="status" class="form__status">
-              <p v-if="status === 'unavailable'" class="notice notice--warn">
-                Versturen via dit formulier is nog niet mogelijk.
+              <p v-if="status === 'unavailable' || status === 'failed'" class="notice notice--warn">
+                {{ status === 'failed' ? failure : 'Versturen via dit formulier is nog niet mogelijk.' }}
                 <template v-if="contact.email">
                   Mail je bericht naar <a :href="`mailto:${contact.email}?subject=${encodeURIComponent(form.onderwerp)}`">{{ contact.email }}</a>.
                 </template>
@@ -314,6 +341,10 @@ textarea:focus-visible {
   gap: 14px;
   font-size: 18px;
   color: var(--bam-body);
+}
+
+.notice:focus-visible {
+  outline-offset: 4px;
 }
 
 .notice p {
