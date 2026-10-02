@@ -4,9 +4,9 @@
  * De ontwerp-tokens staan in tokens.css. De `--kleur-*`/`--lettertype*`-
  * variabelen hieronder zijn aliassen daarop: wp-content.css (de opmaak van de
  * WPBakery-output) gebruikt ze, en die selectors blijven bewust ongewijzigd.
- * Let op: `--kleur-accent` is NIET oranje maar `--bam-label`, omdat hij ook
- * als achtergrond onder witte tekst gebruikt wordt (oranje + wit haalt geen
- * 4.5:1).
+ * `--kleur-accent` is het oranje DECO-accent (lijnen, knopvlakken met
+ * inkt-tekst) en wordt nooit als tekstkleur op licht gebruikt; tekst- en
+ * linkkleuren lopen via de `--link*`-tokens.
  */
 :root {
   --kleur-tekst: var(--bam-ink);
@@ -14,8 +14,8 @@
   --kleur-achtergrond: var(--bam-white);
   --kleur-vlak: var(--bam-mist);
   --kleur-rand: rgba(10, 42, 107, 0.2);
-  --kleur-accent: var(--bam-label);
-  --kleur-accent-donker: var(--bam-night);
+  --kleur-accent: var(--bam-orange);
+  --kleur-accent-donker: var(--bam-ink);
 
   --breedte-tekst: 46rem;
   --breedte-pagina: var(--container);
@@ -65,11 +65,15 @@ h3 {
 }
 
 a {
-  color: var(--bam-label);
+  color: var(--link);
+  text-decoration-color: var(--link-underline);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+  transition: color 0.2s ease;
 }
 
 a:hover {
-  color: var(--bam-ink);
+  color: var(--link-hover);
 }
 
 /* WCAG 2.4.7/2.4.11: altijd een zichtbare focus, overal dezelfde. */
@@ -180,7 +184,7 @@ img {
 .site-nav a:hover,
 .site-nav a.router-link-active {
   border-bottom-color: var(--kleur-accent);
-  color: var(--kleur-accent);
+  color: var(--link);
 }
 
 /* ---------- Pagina-opbouw ---------- */
@@ -285,7 +289,7 @@ main {
 }
 
 .post-card__body h2 a:hover {
-  color: var(--kleur-accent);
+  color: var(--link);
 }
 
 .post-card__date {
@@ -370,7 +374,7 @@ main {
 }
 
 .event-card__body h2 a:hover {
-  color: var(--kleur-accent);
+  color: var(--link);
 }
 
 .event-card__meta {
@@ -403,18 +407,21 @@ main {
 .button,
 .pagination a {
   display: inline-block;
-  padding: 0.55rem 1.1rem;
-  border: 1px solid var(--kleur-accent);
-  border-radius: var(--radius);
-  color: var(--kleur-accent);
+  padding: 14px 26px;
+  border: 1.5px solid var(--bam-ink);
+  color: var(--bam-ink);
   text-decoration: none;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .button:hover,
 .pagination a:hover {
-  background: var(--kleur-accent);
-  color: #fff;
+  background: var(--bam-ink);
+  color: var(--bam-white);
 }
 
 /* ---------- Footer ---------- */

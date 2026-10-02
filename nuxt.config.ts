@@ -144,7 +144,7 @@ export default defineNuxtConfig({
       // Het body- en kopfont staan op elke pagina boven de vouw; vooraf laden
       // voorkomt een zichtbare font-wissel. Limelight (alleen accenten) niet.
       link: [
-        { rel: 'icon', type: 'image/png', href: '/logo.png' },
+        { rel: 'icon', type: 'image/png', href: '/favicon.png' },
         { rel: 'preload', href: '/fonts/josefin-sans-latin-var.woff2', as: 'font', type: 'font/woff2', crossorigin: '' },
         { rel: 'preload', href: '/fonts/poiret-one-latin-400.woff2', as: 'font', type: 'font/woff2', crossorigin: '' },
       ],

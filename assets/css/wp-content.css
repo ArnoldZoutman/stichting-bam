@@ -79,12 +79,21 @@
 .wp-content blockquote {
   margin: var(--ruimte-m) 0;
   padding: var(--ruimte-s) var(--ruimte-m);
-  border-left: 3px solid var(--kleur-accent);
-  background: var(--kleur-vlak);
+  border-top: 6px solid var(--kleur-accent);
+  background: var(--bam-night);
   font-family: var(--lettertype-kop);
-  font-size: 1.15rem;
-  font-style: italic;
-  color: var(--kleur-tekst-zacht);
+  font-size: 1.5rem;
+  line-height: 1.35;
+  letter-spacing: 1px;
+  color: var(--bam-white);
+}
+
+.wp-content blockquote a {
+  color: var(--link-on-night);
+}
+
+.wp-content blockquote a:hover {
+  color: var(--link-on-night-hover);
 }
 
 .wp-content blockquote p:last-child {
@@ -259,18 +268,19 @@
   display: inline-block;
   padding: 0.65rem 1.4rem;
   background: var(--kleur-accent);
-  color: #fff;
+  color: var(--bam-ink);
   border-radius: var(--radius);
   text-decoration: none;
-  font-size: 0.9375rem;
-  letter-spacing: 0.04em;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 3px;
   text-transform: uppercase;
   margin-block: var(--ruimte-xs);
 }
 
 .wp-content .oi_vc_button:hover {
   background: var(--kleur-accent-donker);
-  color: #fff;
+  color: var(--bam-white);
 }
 
 /* ---------- Word-plakresten ----------

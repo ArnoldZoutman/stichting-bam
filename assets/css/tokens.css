@@ -19,6 +19,17 @@
   --bam-body: #33466b;         /* lopende tekst, secundair, op licht */
   --bam-body-on-night: #c9d8f5;
 
+  /* ── Links ──────────────────────────────────────────────────────────────
+     Op licht: label-blauw (7.3:1 op wit, 6.4:1 op sky, 4.5:1 op peach) met een oranje
+     onderlijn als deco-accent; hover naar inkt. Op donker (night): oranje
+     (6.2:1), hover wit — zoals in de prototypes. Oranje is nooit tekstkleur
+     op licht: dat haalt maar 2.1:1. */
+  --link: var(--bam-label);
+  --link-hover: var(--bam-ink);
+  --link-underline: var(--bam-orange);
+  --link-on-night: var(--bam-orange);
+  --link-on-night-hover: var(--bam-white);
+
   /* ── Typografie ────────────────────────────────────────────────────────── */
   --font-display: 'Poiret One', 'Futura', serif;
   --font-accent: 'Limelight', serif;
