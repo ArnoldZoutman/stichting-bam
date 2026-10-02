@@ -109,7 +109,8 @@ useWpSeo({
           {{ visibleCount }} {{ visibleCount === 1 ? 'bericht' : 'berichten' }} zichtbaar
         </p>
 
-        <div v-if="featured" v-show="visible(featured)" class="reveal">
+        <!-- Geen reveal: staat bij het laden in beeld (zie motion.css). -->
+        <div v-if="featured" v-show="visible(featured)">
           <NewsCard :post="featured" featured :heading-level="2" eager />
         </div>
 

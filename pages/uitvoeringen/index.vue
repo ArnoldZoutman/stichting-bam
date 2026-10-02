@@ -144,7 +144,9 @@ useWpSeo({
           :hidden="active !== 'archief'"
         >
           <ul v-if="past.length" class="card-grid archive">
-            <li v-for="(event, i) in past" :key="event.id" class="reveal">
+            <!-- Eerste rij (max. 3 kaarten) staat bij het laden in beeld: geen
+                 reveal, anders is hij half doorzichtig tot je scrolt (contrast). -->
+            <li v-for="(event, i) in past" :key="event.id" :class="{ reveal: i >= 3 }">
               <EventCard :event="event" variant="archive" :num="numbers.get(event.id)?.roman" :heading-level="2" :eager="i === 0 && active === 'archief'" />
             </li>
           </ul>
