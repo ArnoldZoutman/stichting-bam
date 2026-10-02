@@ -102,7 +102,7 @@ useWpSeo({
     <PageHero
       eyebrow="Laat van je horen"
       title="Contact"
-      intro="Vragen over een voorstelling, meedoen of samenwerken? Stuur ons een bericht."
+      intro="Vragen over een voorstelling, meedoen of samenwerken? Stuur ons een mail."
     />
 
     <section class="contact">
