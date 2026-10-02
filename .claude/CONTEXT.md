@@ -126,7 +126,8 @@ Technisch af, maar deze punten bepalen of het toonbaar is (stand 2 okt 2026):
    683 px), de zin over de "impressie" bij Karavaan verwijst naar een slider
    die niet via de API komt.
 3. **Kaarten:** er is geen kaartlink per voorstelling in de API; de knop
-   "Kaarten" wijst naar `/uitvoeringen`. Hart voor BAM linkt wel naar
+   "Kaarten" verschijnt alleen als er een komende voorstelling is (bij de
+   build bepaald) en wijst dan naar `/uitvoeringen`. Hart voor BAM linkt wel naar
    `stichting-bam.weticket.io` — een kandidaat-bron.
 4. **`NUXT_PUBLIC_SITE_URL` staat standaard op `http://localhost:3000`.** Zonder
    die variabele wijzen canonicals, OG-URL's, `robots.txt` en `sitemap.xml` naar

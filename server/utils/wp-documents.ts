@@ -251,7 +251,23 @@ function embeddedEventImage(event: WpEvent) {
  * de 7 voorstellingen liggen al achter ons), en een archief lees je van
  * nieuw naar oud, net als /nieuws.
  */
-export async function getEventList(): Promise<EventListResult> {
+/**
+ * Eén keer per build (proces): de header vraagt op ELKE pagina of er een
+ * komende voorstelling is (knop "Kaarten"), en de WP-host throttelt. Alleen
+ * een geslaagde fetch wordt bewaard. "Komend" wordt bij de build bepaald,
+ * dus binnen één build is dit resultaat stabiel.
+ */
+let eventListPromise: Promise<EventListResult> | null = null
+
+export function getEventList(): Promise<EventListResult> {
+  eventListPromise ??= buildEventList().catch((error) => {
+    eventListPromise = null
+    throw error
+  })
+  return eventListPromise
+}
+
+async function buildEventList(): Promise<EventListResult> {
   const events = await fetchAllEvents()
   const summaries: EventSummary[] = events.map((event) => ({
     id: event.id,

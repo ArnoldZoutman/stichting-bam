@@ -21,6 +21,13 @@ import { mainNavigation, ticketsLink } from '~/config/navigation'
  */
 defineProps<{ siteName: string }>()
 
+// Alleen een vlag, niet de hele agenda: die zou anders in de payload van elke
+// pagina belanden. Faalt de call, dan liever geen knop dan een kapotte header.
+const { data: nav } = await useFetch('/api/nav', {
+  key: 'nav-flags',
+  default: () => ({ hasUpcoming: false }),
+})
+
 const route = useRoute()
 const open = ref(false)
 const toggle = ref<HTMLButtonElement | null>(null)
@@ -53,8 +60,10 @@ function onKeydown(event: KeyboardEvent) {
   >
     <div class="app-header__inner">
       <NuxtLink to="/" class="app-header__logo">
-        <!-- Boven de vouw op elke pagina; zonder prioriteit wacht hij achter de affiches uit het CMS (gemeten ~3 s). -->
-        <img src="/logo.png" :alt="`${siteName} – naar de startpagina`" width="64" height="64" fetchpriority="high">
+        <!-- Boven de vouw op elke pagina; zonder prioriteit wacht hij achter de affiches uit het CMS (gemeten ~3 s).
+             alt leeg: de naam staat er als tekst naast, dat is de linknaam. -->
+        <img src="/logo.png" alt="" width="64" height="64" fetchpriority="high">
+        <span class="app-header__name">{{ siteName }}</span>
       </NuxtLink>
 
       <button
@@ -78,7 +87,7 @@ function onKeydown(event: KeyboardEvent) {
             </NuxtLink>
           </li>
         </ul>
-        <NuxtLink v-slot="{ href, navigate }" :to="ticketsLink.to" custom>
+        <NuxtLink v-if="nav.hasUpcoming" v-slot="{ href, navigate }" :to="ticketsLink.to" custom>
           <a :href="href ?? ticketsLink.to" class="app-header__tickets" @click="navigate">{{ ticketsLink.label }}</a>
         </NuxtLink>
       </nav>
@@ -108,12 +117,50 @@ function onKeydown(event: KeyboardEvent) {
 .app-header__logo {
   display: flex;
   flex: none;
+  align-items: center;
+  gap: 14px;
+  color: var(--bam-white);
+  text-decoration: none;
+}
+
+.app-header__logo:hover {
+  color: var(--link-on-night);
 }
 
 .app-header__logo img {
   display: block;
   width: 64px;
   height: 64px;
+}
+
+.app-header__name {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+/* Smal: logo, naam en de knop "Menu" moeten samen op één regel passen. */
+@media (max-width: 420px) {
+  .app-header__logo {
+    gap: 8px;
+  }
+
+  .app-header__logo img {
+    width: 44px;
+    height: 44px;
+  }
+
+  .app-header__name {
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+
+  html.js .app-header__toggle {
+    gap: 8px;
+    padding: 0 12px;
+  }
 }
 
 .app-header__nav {
@@ -175,7 +222,10 @@ function onKeydown(event: KeyboardEvent) {
   display: none;
 }
 
-@media (max-width: 899px) {
+/* Omslagpunt gemeten: logo+naam (257px) + menu (581px) + Kaarten (~157px)
+   + marges ≈ 1060px. Vast, ook als "Kaarten" er (nog) niet staat, zodat de
+   header niet verspringt zodra er een voorstelling gepland wordt. */
+@media (max-width: 1079px) {
   html.js .app-header__toggle {
     display: inline-flex;
     align-items: center;

@@ -20,8 +20,8 @@
  * WP-pagina met dezelfde slug.
  *
  * Redesign (Art Deco): "Over BAM" blijft op het bestaande pad `/over-ons`
- * (de WP-slug) zodat er geen redirect nodig is. Home zit achter het logo;
- * "Hart voor BAM" staat alleen nog in de footer.
+ * (de WP-slug) zodat er geen redirect nodig is. "Home" staat er expliciet in
+ * (niet iedereen klikt op het logo); "Hart voor BAM" alleen in de footer.
  */
 
 export interface NavItem {
@@ -30,6 +30,7 @@ export interface NavItem {
 }
 
 export const mainNavigation: NavItem[] = [
+  { label: 'Home', to: '/' },
   { label: 'Uitvoeringen', to: '/uitvoeringen' },
   { label: 'Nieuws', to: '/nieuws' },
   { label: 'Over BAM', to: '/over-ons' },
@@ -43,9 +44,11 @@ export const footerNavigation: NavItem[] = [
 ]
 
 /**
- * De knop "Kaarten" in de header. Ticketing valt buiten scope en Events
- * Manager levert geen kaartlink via de API; daarom wijst hij naar het
- * programma. Komt er ooit een echte bestelpagina, dan is dit de enige plek.
+ * De knop "Kaarten" in de header. Alleen zichtbaar als er een komende
+ * voorstelling is (bepaald bij de build, `/api/nav`). Ticketing valt buiten
+ * scope en Events Manager levert geen kaartlink via de API; daarom wijst hij
+ * naar het programma. Komt er ooit een echte bestelpagina, dan is dit de
+ * enige plek.
  */
 export const ticketsLink: NavItem = { label: 'Kaarten', to: '/uitvoeringen' }
 
