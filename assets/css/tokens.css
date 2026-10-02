@@ -43,6 +43,9 @@
 
   /* ── Vaste patronen ────────────────────────────────────────────────────── */
   --focus-ring: 3px solid var(--bam-blue);
+  /* Inkt-halo om de ring: componenten met een eigen box-shadow combineren
+     die hiermee in hun :focus-visible (zie main.css voor het waarom). */
+  --focus-halo: 0 0 0 6px var(--bam-ink);
   --arch-radius: 300px 300px 0 0;
   --card-border: 1.5px solid var(--bam-night);
   --card-shadow-hover: 0 18px 40px rgba(10, 42, 107, 0.16);

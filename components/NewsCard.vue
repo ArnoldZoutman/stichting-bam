@@ -66,6 +66,10 @@ const { formatDate } = useDutchDate()
   box-shadow: var(--card-shadow-hover);
 }
 
+.news-card:focus-visible {
+  box-shadow: var(--focus-halo), var(--card-shadow-hover);
+}
+
 .news-card__media {
   aspect-ratio: 16 / 10;
   overflow: hidden;

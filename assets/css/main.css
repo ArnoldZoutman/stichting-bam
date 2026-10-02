@@ -76,10 +76,17 @@ a:hover {
   color: var(--link-hover);
 }
 
-/* WCAG 2.4.7/2.4.11: altijd een zichtbare focus, overal dezelfde. */
+/*
+ * WCAG 2.4.7/2.4.11 + 1.4.11: altijd een zichtbare focus, overal dezelfde.
+ * De blauwe ring alleen haalt 3:1 wél op night (4.9:1) maar níét op wit
+ * (2.8), sky (2.4), peach (1.7) en het blauwe vlak (1.0). Daarom een inkt-
+ * halo eromheen (≥ 6:1 op alle lichte vlakken): samen zichtbaar op elke
+ * achtergrond van het ontwerp.
+ */
 :focus-visible {
   outline: var(--focus-ring);
-  outline-offset: 3px;
+  outline-offset: 0;
+  box-shadow: var(--focus-halo);
 }
 
 /* ---------- Decoratieve patronen (altijd aria-hidden in de markup) ---------- */

@@ -88,6 +88,10 @@ const archiveMeta = computed(() =>
   box-shadow: var(--card-shadow-hover);
 }
 
+.event-card:focus-visible {
+  box-shadow: var(--focus-halo), var(--card-shadow-hover);
+}
+
 .event-card__media {
   position: relative;
   aspect-ratio: 16 / 10;
@@ -95,7 +99,11 @@ const archiveMeta = computed(() =>
   background: var(--bam-night);
 }
 
-.event-card--archive .event-card__media {
+.event-card--archive .event-card:focus-visible {
+  box-shadow: var(--focus-halo), var(--card-shadow-hover);
+}
+
+.event-card__media {
   aspect-ratio: 4 / 3;
 }
 

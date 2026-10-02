@@ -153,7 +153,14 @@ export default defineNuxtConfig({
       // Staat hier en niet in app.vue: zo zit de tag in de <head> van ELKE
       // geprerenderde pagina, ook de pagina's die app.vue niet renderen
       // (404.html). Volgorde blijft zoals hier: eerst de loader, dan de init.
-      script: analyticsScripts,
+      // Eerst een inline vlag `html.js`, vóór de eerste paint: daarop klapt het
+      // mobiele menu in (AppHeader). Zo verspringt de layout niet bij
+      // hydratie. `finalize-404.mjs` strípt dit script uit 404.html, waar het
+      // menu daardoor gewoon open blijft — precies goed zonder JS.
+      script: [
+        { innerHTML: "document.documentElement.classList.add('js')", tagPosition: 'head' },
+        ...analyticsScripts,
+      ],
     },
   },
 

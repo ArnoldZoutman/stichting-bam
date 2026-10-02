@@ -9,8 +9,10 @@ import { mainNavigation, ticketsLink } from '~/config/navigation'
  * zou daar onbruikbaar zijn. Daarom:
  *  - zonder JS (en vóór hydratie) staat het menu gewoon open en loopt het op
  *    smalle schermen door op meerdere regels;
- *  - pas na `onMounted` krijgt de header `is-enhanced`, verschijnt de
- *    hamburgerknop en klapt het menu op mobiel in.
+ *  - met JS zet een inline script in de <head> (nuxt.config.ts) vóór de
+ *    eerste paint `html.js`; daarop verschijnt de hamburgerknop en klapt het
+ *    menu op mobiel in. Bewust niet via `onMounted`: dan zou het menu bij
+ *    elke pageload eerst open staan en daarna verspringen (CLS).
  *
  * Actieve status: `aria-current="page"` op de exacte pagina, `"true"` op de
  * sectie (bijv. "Uitvoeringen" op een voorstellingspagina). We zetten dat
@@ -20,13 +22,8 @@ import { mainNavigation, ticketsLink } from '~/config/navigation'
 defineProps<{ siteName: string }>()
 
 const route = useRoute()
-const enhanced = ref(false)
 const open = ref(false)
 const toggle = ref<HTMLButtonElement | null>(null)
-
-onMounted(() => {
-  enhanced.value = true
-})
 
 // Na navigeren hoort het mobiele menu dicht te zijn.
 watch(() => route.path, () => {
@@ -51,7 +48,7 @@ function onKeydown(event: KeyboardEvent) {
 <template>
   <header
     class="app-header"
-    :class="{ 'is-enhanced': enhanced, 'is-open': open }"
+    :class="{ 'is-open': open }"
     @keydown="onKeydown"
   >
     <div class="app-header__inner">
@@ -68,7 +65,8 @@ function onKeydown(event: KeyboardEvent) {
         @click="open = !open"
       >
         <span class="app-header__toggle-icon" aria-hidden="true"><span /></span>
-        <span>{{ open ? 'Sluiten' : 'Menu' }}</span>
+        <!-- Vast label: de toestand zit in aria-expanded, anders wordt hij dubbel voorgelezen. -->
+        <span>Menu</span>
       </button>
 
       <nav id="hoofdmenu" class="app-header__nav" aria-label="Hoofdmenu">
@@ -177,7 +175,7 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 @media (max-width: 899px) {
-  .is-enhanced .app-header__toggle {
+  html.js .app-header__toggle {
     display: inline-flex;
     align-items: center;
     gap: 12px;
@@ -245,7 +243,7 @@ function onKeydown(event: KeyboardEvent) {
   }
 
   /* Met JS: menu als uitklappaneel over de volle breedte. */
-  .is-enhanced .app-header__nav {
+  html.js .app-header__nav {
     display: none;
     flex-basis: 100%;
     flex-direction: column;
@@ -254,16 +252,16 @@ function onKeydown(event: KeyboardEvent) {
     padding: 8px 0 12px;
   }
 
-  .is-enhanced.is-open .app-header__nav {
+  html.js .is-open .app-header__nav {
     display: flex;
   }
 
-  .is-enhanced .app-header__nav ul {
+  html.js .app-header__nav ul {
     flex-direction: column;
     gap: 0;
   }
 
-  .is-enhanced .app-header__link {
+  html.js .app-header__link {
     display: flex;
     align-items: center;
     min-height: 48px;
@@ -271,14 +269,14 @@ function onKeydown(event: KeyboardEvent) {
     border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   }
 
-  .is-enhanced .app-header__link[aria-current] {
+  html.js .app-header__link[aria-current] {
     color: var(--bam-orange);
     border-bottom-color: rgba(255, 255, 255, 0.15);
     box-shadow: inset 3px 0 0 var(--bam-orange);
     padding-left: 14px;
   }
 
-  .is-enhanced .app-header__tickets {
+  html.js .app-header__tickets {
     justify-content: center;
   }
 }
