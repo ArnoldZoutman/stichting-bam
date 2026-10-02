@@ -92,7 +92,7 @@ const hasDetails = computed(() => Boolean(contact.value.email || contact.value.a
 
 useWpSeo({
   title: 'Contact',
-  description: 'Vragen over een voorstelling, meedoen of samenwerken? Stuur Stichting BAM een bericht.',
+  description: 'Vragen over een voorstelling, meedoen of samenwerken? Stuur Stichting BAM een mail.',
   path: '/contact',
 })
 </script>
