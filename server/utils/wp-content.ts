@@ -389,6 +389,22 @@ export function htmlToText(html: string): string {
   return cheerio.load(html, null, false).root().text().replace(/\s+/g, ' ').trim()
 }
 
+/**
+ * De eerste échte alinea van getransformeerde content, als platte tekst en
+ * NIET ingekort. Voor plekken die een intro of lead tonen (bijv. de missie op
+ * de homepage), waar de afgekapte meta description met "…" niet past. Korte
+ * `<p>`'s (losse labels, lege restjes van wpautop) slaan we over.
+ */
+export function firstParagraphText(html: string, minLength = 40): string {
+  if (!html) return ''
+  const $ = cheerio.load(html, null, false)
+  for (const el of $('p').toArray()) {
+    const text = $(el).text().replace(/\s+/g, ' ').trim()
+    if (text.length >= minLength) return text
+  }
+  return ''
+}
+
 /** Kort af op een woordgrens, voor meta descriptions. */
 export function truncate(text: string, max = 160): string {
   if (text.length <= max) return text

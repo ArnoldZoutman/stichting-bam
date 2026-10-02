@@ -168,8 +168,10 @@ export interface ContentDocument {
   title: string
   /** Getransformeerde, hydratie-veilige HTML. Kan leeg zijn. */
   html: string
-  /** Platte tekst voor meta description. */
+  /** Platte tekst voor meta description (ingekort, kan op "…" eindigen). */
   description: string
+  /** Eerste alinea als platte tekst, niet ingekort. Leeg als er geen is. */
+  lead: string
   date: string
   modified: string
   featuredImage: ResolvedImage | null

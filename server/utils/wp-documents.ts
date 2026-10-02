@@ -19,7 +19,7 @@ import {
   fetchAllEvents,
   toResolvedImage,
 } from './wp-client'
-import { htmlToText, stripShortcodes, transformContent, extractEventDescription, truncate } from './wp-content'
+import { htmlToText, stripShortcodes, transformContent, extractEventDescription, truncate, firstParagraphText } from './wp-content'
 import { excludedPageSlugs } from '~~/config/navigation'
 
 /** Publieke URL van de WP-site, afgeleid van de API-base uit runtimeConfig. */
@@ -76,6 +76,7 @@ async function toDocument(source: WpPage | WpPost): Promise<ContentDocument> {
     title: decodeTitle(source.title.rendered),
     html,
     description: buildDescription(source.excerpt?.rendered ?? '', text),
+    lead: firstParagraphText(html),
     date: source.date,
     modified: source.modified,
     featuredImage,
@@ -188,6 +189,7 @@ async function toEventDocument(event: WpEvent): Promise<EventDocument> {
     title: decodeTitle(event.title.rendered),
     html,
     description: buildDescription(event.excerpt?.rendered ?? '', text),
+    lead: firstParagraphText(html),
     date: event.date,
     modified: event.modified,
     featuredImage,

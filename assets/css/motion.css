@@ -149,6 +149,13 @@
   .progress {
     display: none;
   }
+
+  /* Eindstand van de gordijnen is "open": zonder scroll-timeline tonen we
+     die meteen in plaats van blijvend dichte gordijnen. */
+  .curtain-l,
+  .curtain-r {
+    display: none;
+  }
 }
 
 .hint {
