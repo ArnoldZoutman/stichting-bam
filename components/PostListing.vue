@@ -57,8 +57,8 @@ useWpSeo({
       </p>
     </div>
 
-    <ul v-if="posts?.items.length" class="post-list">
-      <PostCard v-for="post in posts.items" :key="post.id" :post="post" />
+    <ul v-if="posts?.items.length" class="card-grid">
+      <li v-for="post in posts.items" :key="post.id"><NewsCard :post="post" :heading-level="2" /></li>
     </ul>
     <div v-else class="content-notice">
       <p>Er zijn op dit moment geen berichten.</p>

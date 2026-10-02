@@ -102,7 +102,9 @@ async function fetchPrerenderRoutes(): Promise<string[]> {
   const totalPages = Number(head.headers.get('x-wp-totalpages') ?? 1)
 
   const excluded: readonly string[] = excludedPageSlugs
-  const routes = new Set<string>(['/', '/nieuws', '/uitvoeringen', '/robots.txt', '/sitemap.xml'])
+  // `/contact` is een eigen Nuxt-pagina zonder WP-tegenhanger: expliciet
+  // opnemen, niet op crawlLinks vertrouwen.
+  const routes = new Set<string>(['/', '/nieuws', '/uitvoeringen', '/contact', '/robots.txt', '/sitemap.xml'])
   for (const page of pages) {
     // `home` wordt op `/` gerenderd. Uitgesloten placeholderpagina's (zie
     // config/navigation.ts) krijgen bewust GEEN route: die worden niet meer

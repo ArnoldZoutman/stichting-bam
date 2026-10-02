@@ -12,7 +12,7 @@ useHead({ title: titel })
 <template>
   <div>
     <a class="skip-link" href="#hoofdinhoud">Naar de inhoud</a>
-    <SiteHeader site-name="Stichting BAM" />
+    <AppHeader site-name="Stichting BAM" />
     <main id="hoofdinhoud">
       <div class="container error-page">
         <h1>{{ error?.statusCode ?? 500 }}</h1>
@@ -21,6 +21,6 @@ useHead({ title: titel })
         <p><NuxtLink class="button" to="/" @click="clearError({ redirect: '/' })">Terug naar home</NuxtLink></p>
       </div>
     </main>
-    <SiteFooter site-name="Stichting BAM" />
+    <AppFooter site-name="Stichting BAM" />
   </div>
 </template>

@@ -60,5 +60,25 @@ export function useEventDate() {
     return end && end !== start ? `${start} – ${end}` : start
   }
 
-  return { formatEventPeriod, formatEventTime }
+  const monthOnly = new Intl.DateTimeFormat('nl-NL', { month: 'long', timeZone: 'Europe/Amsterdam' })
+
+  /**
+   * Losse delen voor de datumblokjes op kaarten en agenda-rijen (grote dag in
+   * Limelight, maand eronder):
+   *  - één dag of meerdaags over twee maanden: `{ day: '3', month: 'juli' }`
+   *    (bij twee maanden telt de startdag; de volledige periode staat elders)
+   *  - meerdaags binnen één maand: `{ day: '3–4', month: 'juli' }`
+   */
+  function eventDateParts(startDate: string | null, endDate: string | null): { day: string; month: string; year: string } | null {
+    const start = toLocalDate(startDate ?? '')
+    if (!start) return null
+    const end = toLocalDate(endDate ?? '') ?? start
+    const sameMonth = start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth()
+    const day = sameMonth && end.getDate() !== start.getDate()
+      ? `${dayOnly.format(start)}–${dayOnly.format(end)}`
+      : dayOnly.format(start)
+    return { day, month: monthOnly.format(start), year: String(start.getFullYear()) }
+  }
+
+  return { formatEventPeriod, formatEventTime, eventDateParts }
 }

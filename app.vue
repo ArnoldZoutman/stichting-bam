@@ -12,10 +12,10 @@ useHead({
 <template>
   <div>
     <a class="skip-link" href="#hoofdinhoud">Naar de inhoud</a>
-    <SiteHeader :site-name="siteName" />
+    <AppHeader :site-name="siteName" />
     <main id="hoofdinhoud">
       <NuxtPage />
     </main>
-    <SiteFooter :site-name="siteName" />
+    <AppFooter :site-name="siteName" />
   </div>
 </template>

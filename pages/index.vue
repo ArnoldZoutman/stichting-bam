@@ -84,8 +84,8 @@ useWpSeo({
 
     <section v-if="recentEvents.length">
       <h2>Uitvoeringen</h2>
-      <ul class="event-list">
-        <EventCard v-for="event in recentEvents" :key="event.id" :event="event" />
+      <ul class="card-grid">
+        <li v-for="event in recentEvents" :key="event.id"><EventCard :event="event" /></li>
       </ul>
       <p style="margin-top: var(--ruimte-m)">
         <NuxtLink class="button" to="/uitvoeringen">Alle voorstellingen</NuxtLink>
@@ -94,8 +94,8 @@ useWpSeo({
 
     <section v-if="posts.items.length">
       <h2>Laatste nieuws</h2>
-      <ul class="post-list">
-        <PostCard v-for="post in posts.items" :key="post.id" :post="post" />
+      <ul class="card-grid">
+        <li v-for="post in posts.items" :key="post.id"><NewsCard :post="post" /></li>
       </ul>
       <p style="margin-top: var(--ruimte-m)">
         <NuxtLink class="button" to="/nieuws">Alle berichten</NuxtLink>

@@ -40,15 +40,15 @@ useWpSeo({
 
     <section v-if="events?.upcoming.length">
       <h2>Aankomend</h2>
-      <ul class="event-list">
-        <EventCard v-for="event in events.upcoming" :key="event.id" :event="event" />
+      <ul class="card-grid">
+        <li v-for="event in events.upcoming" :key="event.id"><EventCard :event="event" /></li>
       </ul>
     </section>
 
     <section>
       <h2>Archief</h2>
-      <ul v-if="events?.past.length" class="event-list">
-        <EventCard v-for="event in events.past" :key="event.id" :event="event" />
+      <ul v-if="events?.past.length" class="card-grid">
+        <li v-for="event in events.past" :key="event.id"><EventCard :event="event" variant="archive" /></li>
       </ul>
       <div v-else class="content-notice">
         <p>Er zijn nog geen eerdere voorstellingen.</p>
