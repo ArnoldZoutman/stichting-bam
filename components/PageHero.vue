@@ -38,12 +38,14 @@ defineProps<{
   color: var(--bam-white);
 }
 
+/* Vaste maat, bovenaan verankerd: onafhankelijk van de hero-hoogte, zodat
+   font-swap geen layout shift van de krans geeft. */
 .page-hero-deco__sun {
   position: absolute;
   left: -20%;
   right: -20%;
-  bottom: -40%;
-  height: 180%;
+  top: -200px;
+  height: 900px;
   pointer-events: none;
 }
 

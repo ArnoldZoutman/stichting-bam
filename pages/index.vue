@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { mainNavigation } from '~/config/navigation'
+import { siteFacts } from '~/config/site'
 
 /**
  * Startpagina volgens design-reference/pages/Main.dc.html: gordijn-hero en
@@ -119,7 +120,7 @@ useWpSeo({
 
       <div class="hero__content">
         <img class="hero__logo" src="/logo.png" alt="" width="150" height="150" fetchpriority="high">
-        <EyebrowLabel tone="dark">Bergen op Zoom</EyebrowLabel>
+        <EyebrowLabel tone="dark">Bergen op Zoom · sinds {{ siteFacts.foundedYear }}</EyebrowLabel>
         <svg class="hero__ornament" width="120" height="24" viewBox="0 0 120 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 12h44M76 12h44" /><path d="M60 2l10 10-10 10-10-10z" /><path d="M60 7l5 5-5 5-5-5z" /></svg>
         <h1 id="home-titel">{{ titel }}</h1>
         <p class="hero__subtitle">Bergse Alliantie voor Muziektheater</p>

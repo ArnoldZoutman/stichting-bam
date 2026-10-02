@@ -119,15 +119,19 @@ const archiveMeta = computed(() =>
   transform: scale(1.04);
 }
 
+/* Op een night-vlak i.p.v. los op de foto: op drukke affiches is oranje
+   anders onleesbaar. Night + oranje = 6.2:1, ongeacht het beeld. */
 .event-card__num {
   position: absolute;
-  left: 18px;
-  bottom: 10px;
+  left: 0;
+  bottom: 0;
+  padding: 10px 16px 6px;
+  border-top: 3px solid var(--bam-orange);
+  background: var(--bam-night);
   font-family: var(--font-accent);
-  font-size: 64px;
+  font-size: 44px;
   line-height: 1;
   color: var(--bam-orange);
-  text-shadow: 0 2px 12px rgba(5, 20, 60, 0.6);
 }
 
 .event-card__date {

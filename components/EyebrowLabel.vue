@@ -11,8 +11,12 @@
  * Met `rule` komt er een oranje lijntje onder dat vanuit het midden groeit.
  * De wrapper heeft `display: contents`: label en lijn worden zo gewone
  * kinderen van de omringende flex-kolom en krijgen diens `gap`, net als in de
- * prototypes.
+ * prototypes. Attributen (id, class) gaan daarom naar het label zelf, niet
+ * naar de wrapper: een klasse als `reveal` op een box-loos element zou niets
+ * doen.
  */
+defineOptions({ inheritAttrs: false })
+
 withDefaults(
   defineProps<{
     tone?: 'light' | 'dark' | 'ink'
@@ -25,7 +29,7 @@ withDefaults(
 
 <template>
   <div class="eyebrow-wrap">
-    <component :is="tag" class="eyebrow" :class="`eyebrow--${tone}`"><slot /></component>
+    <component :is="tag" v-bind="$attrs" class="eyebrow" :class="`eyebrow--${tone}`"><slot /></component>
     <span v-if="rule" class="eyebrow-rule rule" aria-hidden="true" />
   </div>
 </template>
