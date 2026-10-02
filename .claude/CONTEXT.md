@@ -128,5 +128,3 @@ Technisch af, maar deze punten bepalen of het toonbaar is (stand 2 okt 2026):
 4. **`NUXT_PUBLIC_SITE_URL` staat standaard op `http://localhost:3000`.** Zonder
    die variabele wijzen canonicals, OG-URL's, `robots.txt` en `sitemap.xml` naar
    localhost. De deploy-workflow zet hem.
-5. **`404.html` preloadt `/404/_payload.json`**, dat `finalize-404.mjs` weghaalt:
-   een 404 in de console. Eén regel in dat script.

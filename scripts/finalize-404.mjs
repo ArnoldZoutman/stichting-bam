@@ -19,7 +19,9 @@
  * Draait ná `nuxt generate` en vóór `scripts/verify-build.mjs`, zodat de
  * faal-check de ECHTE inhoud controleert.
  *
- * Verwijdert ook de script- en modulepreload-tags uit de gekopieerde HTML.
+ * Verwijdert ook de script- en modulepreload-tags uit de gekopieerde HTML,
+ * plus de preload van `/404/_payload.json`: die map ruimen we hieronder op,
+ * dus die preload gaf op elke 404 een (tweede) 404 in de console.
  * Zonder JavaScript is er toch niets te hydrateren — Apache serveert dit
  * bestand voor een willekeurig pad, niet voor `/404` waar het voor gebouwd
  * is, dus hydratie zou daar alleen een "Hydration completed but contains
@@ -48,6 +50,7 @@ if (!existsSync(source)) {
 const $ = cheerio.load(readFileSync(source, 'utf8'))
 $('script').not('[data-analytics]').remove()
 $('link[rel="modulepreload"]').remove()
+$('link[href*="_payload.json"]').remove()
 writeFileSync(target, $.html())
 
 rmSync(join(OUT, '404'), { recursive: true, force: true })
