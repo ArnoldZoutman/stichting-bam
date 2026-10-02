@@ -1,16 +1,24 @@
 /* Basisstijl van de frontend. Plain CSS met custom properties; geen framework. */
 
+/*
+ * De ontwerp-tokens staan in tokens.css. De `--kleur-*`/`--lettertype*`-
+ * variabelen hieronder zijn aliassen daarop: wp-content.css (de opmaak van de
+ * WPBakery-output) gebruikt ze, en die selectors blijven bewust ongewijzigd.
+ * `--kleur-accent` is het oranje DECO-accent (lijnen, knopvlakken met
+ * inkt-tekst) en wordt nooit als tekstkleur op licht gebruikt; tekst- en
+ * linkkleuren lopen via de `--link*`-tokens.
+ */
 :root {
-  --kleur-tekst: #1c1b1a;
-  --kleur-tekst-zacht: #55514c;
-  --kleur-achtergrond: #ffffff;
-  --kleur-vlak: #f4f2ef;
-  --kleur-rand: #e2ddd6;
-  --kleur-accent: #a8341f;
-  --kleur-accent-donker: #7d2617;
+  --kleur-tekst: var(--bam-ink);
+  --kleur-tekst-zacht: var(--bam-body);
+  --kleur-achtergrond: var(--bam-white);
+  --kleur-vlak: var(--bam-mist);
+  --kleur-rand: rgba(10, 42, 107, 0.2);
+  --kleur-accent: var(--bam-orange);
+  --kleur-accent-donker: var(--bam-ink);
 
   --breedte-tekst: 46rem;
-  --breedte-pagina: 72rem;
+  --breedte-pagina: var(--container);
 
   --ruimte-xs: 0.5rem;
   --ruimte-s: 1rem;
@@ -18,10 +26,10 @@
   --ruimte-l: 3rem;
   --ruimte-xl: 5rem;
 
-  --lettertype: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-  --lettertype-kop: Georgia, 'Times New Roman', serif;
+  --lettertype: var(--font-body);
+  --lettertype-kop: var(--font-display);
 
-  --radius: 3px;
+  --radius: 0;
 }
 
 *,
@@ -36,19 +44,77 @@ html {
 
 body {
   margin: 0;
-  font-family: var(--lettertype);
+  font-family: var(--font-body);
   font-size: 1.0625rem;
+  font-weight: 400;
   line-height: 1.65;
-  color: var(--kleur-tekst);
-  background: var(--kleur-achtergrond);
+  color: var(--bam-ink);
+  background: var(--bam-white);
+  /* Zonnestralen en drift-titels steken bewust buiten beeld; `clip` i.p.v.
+     `hidden` zodat `position: sticky` en de scroll-timeline blijven werken. */
+  overflow-x: clip;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-wrap: balance;
 }
 
 a {
-  color: var(--kleur-accent);
+  color: var(--link);
+  text-decoration-color: var(--link-underline);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+  transition: color 0.2s ease;
 }
 
 a:hover {
-  color: var(--kleur-accent-donker);
+  color: var(--link-hover);
+}
+
+/*
+ * WCAG 2.4.7/2.4.11 + 1.4.11: altijd een zichtbare focus, overal dezelfde.
+ * De blauwe ring alleen haalt 3:1 wél op night (4.9:1) maar níét op wit
+ * (2.8), sky (2.4), peach (1.7) en het blauwe vlak (1.0). Daarom een inkt-
+ * halo eromheen (≥ 6:1 op alle lichte vlakken): samen zichtbaar op elke
+ * achtergrond van het ontwerp.
+ */
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 0;
+  box-shadow: var(--focus-halo);
+}
+
+/* ---------- Decoratieve patronen (altijd aria-hidden in de markup) ---------- */
+
+.sunburst {
+  background: var(--sunburst);
+}
+
+.sunburst-light {
+  background: var(--sunburst-light);
+}
+
+.deco-pattern {
+  background-color: var(--bam-orange);
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.32) 25%, transparent 25%),
+    linear-gradient(225deg, rgba(255, 255, 255, 0.32) 25%, transparent 25%);
+  background-size: 28px 28px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 img {
@@ -58,9 +124,9 @@ img {
 
 .container {
   width: 100%;
-  max-width: var(--breedte-pagina);
+  max-width: calc(var(--container) + 2 * var(--gutter));
   margin-inline: auto;
-  padding-inline: var(--ruimte-s);
+  padding-inline: var(--gutter);
 }
 
 /* Toegankelijkheid: skiplink naar de hoofdinhoud. */
@@ -76,56 +142,6 @@ img {
 
 .skip-link:focus {
   left: 0;
-}
-
-/* ---------- Header ---------- */
-
-.site-header {
-  border-bottom: 1px solid var(--kleur-rand);
-  background: var(--kleur-achtergrond);
-}
-
-.site-header__inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ruimte-s);
-  padding-block: var(--ruimte-s);
-}
-
-.site-header__logo {
-  font-family: var(--lettertype-kop);
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--kleur-tekst);
-  text-decoration: none;
-}
-
-.site-nav ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ruimte-m);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.site-nav a {
-  color: var(--kleur-tekst);
-  text-decoration: none;
-  font-size: 0.9375rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding-block: 0.25rem;
-  border-bottom: 2px solid transparent;
-}
-
-.site-nav a:hover,
-.site-nav a.router-link-active {
-  border-bottom-color: var(--kleur-accent);
-  color: var(--kleur-accent);
 }
 
 /* ---------- Pagina-opbouw ---------- */
@@ -158,6 +174,11 @@ img {
 
 main {
   min-height: 50vh;
+}
+
+/* Pagina's die (nog) als één .container zijn opgebouwd krijgen ruimte tot de
+   footer; pagina's met eigen secties regelen hun eigen ritme. */
+main > .container:last-child {
   padding-bottom: var(--ruimte-xl);
 }
 
@@ -176,158 +197,15 @@ main {
   margin: 0;
 }
 
-/* ---------- Berichtenoverzicht ---------- */
+/* ---------- Kaartenraster (EventCard, NewsCard) ---------- */
 
-.post-list {
+.card-grid {
   display: grid;
-  gap: var(--ruimte-l);
-  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.post-card {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--kleur-rand);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--kleur-achtergrond);
-}
-
-.post-card__image {
-  aspect-ratio: 3 / 2;
-  overflow: hidden;
-  background: var(--kleur-vlak);
-}
-
-.post-card__image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.post-card__body {
-  padding: var(--ruimte-s);
-  display: flex;
-  flex-direction: column;
-  gap: var(--ruimte-xs);
-  flex: 1;
-}
-
-.post-card__body h2 {
-  font-family: var(--lettertype-kop);
-  font-size: 1.25rem;
-  margin: 0;
-  line-height: 1.3;
-}
-
-.post-card__body h2 a {
-  color: var(--kleur-tekst);
-  text-decoration: none;
-}
-
-.post-card__body h2 a:hover {
-  color: var(--kleur-accent);
-}
-
-.post-card__date {
-  color: var(--kleur-tekst-zacht);
-  font-size: 0.875rem;
-}
-
-.post-card__excerpt {
-  color: var(--kleur-tekst-zacht);
-  font-size: 0.9375rem;
-  margin: 0;
-}
-
-/* ---------- Agenda (uitvoeringen) ---------- */
-
-.event-list {
-  display: grid;
-  gap: var(--ruimte-l);
-  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-  list-style: none;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 32px;
   margin: 0 0 var(--ruimte-l);
   padding: 0;
-}
-
-.event-card {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--kleur-rand);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--kleur-achtergrond);
-}
-
-/* Geweest voorstellingen iets gedempt: dit overzicht is nu vooral een archief. */
-.event-card--past {
-  opacity: 0.85;
-}
-
-.event-card__image {
-  aspect-ratio: 3 / 2;
-  overflow: hidden;
-  background: var(--kleur-vlak);
-}
-
-.event-card__image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.event-card__body {
-  padding: var(--ruimte-s);
-  display: flex;
-  flex-direction: column;
-  gap: var(--ruimte-xs);
-  flex: 1;
-}
-
-.event-card__status {
-  margin: 0;
-  color: var(--kleur-tekst-zacht);
-  font-size: 0.8125rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.event-card--past .event-card__status {
-  font-style: italic;
-}
-
-.event-card__body h2 {
-  font-family: var(--lettertype-kop);
-  font-size: 1.25rem;
-  margin: 0;
-  line-height: 1.3;
-}
-
-.event-card__body h2 a {
-  color: var(--kleur-tekst);
-  text-decoration: none;
-}
-
-.event-card__body h2 a:hover {
-  color: var(--kleur-accent);
-}
-
-.event-card__meta {
-  color: var(--kleur-tekst-zacht);
-  font-size: 0.875rem;
-  margin: 0;
-}
-
-.event-card__excerpt {
-  color: var(--kleur-tekst-zacht);
-  font-size: 0.9375rem;
-  margin: 0;
+  list-style: none;
 }
 
 /* ---------- Paginering ---------- */
@@ -348,35 +226,21 @@ main {
 .button,
 .pagination a {
   display: inline-block;
-  padding: 0.55rem 1.1rem;
-  border: 1px solid var(--kleur-accent);
-  border-radius: var(--radius);
-  color: var(--kleur-accent);
+  padding: 14px 26px;
+  border: 1.5px solid var(--bam-ink);
+  color: var(--bam-ink);
   text-decoration: none;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .button:hover,
 .pagination a:hover {
-  background: var(--kleur-accent);
-  color: #fff;
-}
-
-/* ---------- Footer ---------- */
-
-.site-footer {
-  border-top: 1px solid var(--kleur-rand);
-  background: var(--kleur-vlak);
-  padding-block: var(--ruimte-m);
-  color: var(--kleur-tekst-zacht);
-  font-size: 0.9375rem;
-}
-
-.site-footer__inner {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ruimte-s);
-  justify-content: space-between;
+  background: var(--bam-ink);
+  color: var(--bam-white);
 }
 
 /* ---------- Foutpagina ---------- */

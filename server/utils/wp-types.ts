@@ -168,13 +168,22 @@ export interface ContentDocument {
   title: string
   /** Getransformeerde, hydratie-veilige HTML. Kan leeg zijn. */
   html: string
-  /** Platte tekst voor meta description. */
+  /** Platte tekst voor meta description (ingekort, kan op "…" eindigen). */
   description: string
+  /** Eerste alinea als platte tekst, niet ingekort. Leeg als er geen is. */
+  lead: string
   date: string
   modified: string
   featuredImage: ResolvedImage | null
   /** True als er na transformatie geen renderbare content overbleef. */
   isEmpty: boolean
+}
+
+/** Categorie zoals de frontend hem toont; de standaardcategorie valt eruit. */
+export interface PostCategory {
+  id: number
+  name: string
+  slug: string
 }
 
 export interface PostSummary {
@@ -184,6 +193,20 @@ export interface PostSummary {
   description: string
   date: string
   featuredImage: ResolvedImage | null
+  categories: PostCategory[]
+}
+
+/** Wat `/api/post/<slug>` teruggeeft aan de berichtpagina. */
+export interface PostDocument extends ContentDocument {
+  categories: PostCategory[]
+  /** Leestijd in minuten (200 woorden/min), minimaal 1. */
+  readingMinutes: number
+  /**
+   * Alleen een HANDMATIG geschreven excerpt, als platte tekst. Een
+   * automatische excerpt is gewoon het begin van de tekst en zou als intro
+   * de eerste alinea dubbel tonen; dan is dit leeg.
+   */
+  intro: string
 }
 
 export interface PostListResult {
@@ -191,6 +214,16 @@ export interface PostListResult {
   page: number
   totalPages: number
   total: number
+}
+
+/**
+ * Contactgegevens zoals ze in het blok "Contactgegevens" van de WP-pagina
+ * `over-ons` staan (zie getContactDetails). Elk veld kan leeg zijn.
+ */
+export interface ContactDetails {
+  email: string | null
+  addressLines: string[]
+  kvk: string | null
 }
 
 /** Wat `/api/event/<slug>` teruggeeft aan de detailpagina. */

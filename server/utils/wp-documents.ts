@@ -5,6 +5,10 @@ import type {
   WpPage,
   WpPost,
   WpEvent,
+  WpTerm,
+  PostCategory,
+  PostDocument,
+  ContactDetails,
   EventDocument,
   EventSummary,
   EventListResult,
@@ -19,7 +23,8 @@ import {
   fetchAllEvents,
   toResolvedImage,
 } from './wp-client'
-import { htmlToText, stripShortcodes, transformContent, extractEventDescription, truncate } from './wp-content'
+import * as cheerio from 'cheerio'
+import { htmlToText, stripShortcodes, transformContent, extractEventDescription, truncate, firstParagraphText } from './wp-content'
 import { excludedPageSlugs } from '~~/config/navigation'
 
 /** Publieke URL van de WP-site, afgeleid van de API-base uit runtimeConfig. */
@@ -76,6 +81,7 @@ async function toDocument(source: WpPage | WpPost): Promise<ContentDocument> {
     title: decodeTitle(source.title.rendered),
     html,
     description: buildDescription(source.excerpt?.rendered ?? '', text),
+    lead: firstParagraphText(html),
     date: source.date,
     modified: source.modified,
     featuredImage,
@@ -94,9 +100,38 @@ export async function getPageDocument(slug: string): Promise<ContentDocument | n
   return page ? await toDocument(page) : null
 }
 
-export async function getPostDocument(slug: string): Promise<ContentDocument | null> {
+/**
+ * De standaardcategorie ("Geen categorie"; "Uncategorized" komt uit de
+ * demo-import) zegt niets over een bericht en tonen we niet als label of
+ * filter.
+ */
+const DEFAULT_CATEGORY_SLUGS = ['geen-categorie', 'uncategorized']
+
+function postCategories(post: WpPost): PostCategory[] {
+  const terms = (post._embedded?.['wp:term'] ?? []).flat() as WpTerm[]
+  return terms
+    .filter((t) => t.taxonomy === 'category' && !DEFAULT_CATEGORY_SLUGS.includes(t.slug))
+    .map((t) => ({ id: t.id, name: decodeTitle(t.name), slug: t.slug }))
+}
+
+/** WordPress zet `[&hellip;]` achter een automatisch gegenereerde excerpt. */
+function manualExcerpt(post: WpPost): string {
+  const raw = post.excerpt?.rendered ?? ''
+  if (!raw.trim() || /\[(&hellip;|…)\]/.test(raw)) return ''
+  return excerptToText(raw)
+}
+
+export async function getPostDocument(slug: string): Promise<PostDocument | null> {
   const post = await fetchPostBySlug(slug)
-  return post ? await toDocument(post) : null
+  if (!post) return null
+  const doc = await toDocument(post)
+  const words = htmlToText(doc.html).split(/\s+/).filter(Boolean).length
+  return {
+    ...doc,
+    categories: postCategories(post),
+    readingMinutes: Math.max(1, Math.round(words / 200)),
+    intro: manualExcerpt(post),
+  }
 }
 
 /** Pakt de featured image uit `_embedded` (scheelt een request per bericht). */
@@ -119,6 +154,7 @@ export async function getPostList(page: number, perPage = 6): Promise<PostListRe
       description: truncate(excerptToText(post.excerpt?.rendered ?? ''), 180),
       date: post.date,
       featuredImage: embeddedImage(post),
+      categories: postCategories(post),
     })),
   }
 }
@@ -188,6 +224,7 @@ async function toEventDocument(event: WpEvent): Promise<EventDocument> {
     title: decodeTitle(event.title.rendered),
     html,
     description: buildDescription(event.excerpt?.rendered ?? '', text),
+    lead: firstParagraphText(html),
     date: event.date,
     modified: event.modified,
     featuredImage,
@@ -214,7 +251,23 @@ function embeddedEventImage(event: WpEvent) {
  * de 7 voorstellingen liggen al achter ons), en een archief lees je van
  * nieuw naar oud, net als /nieuws.
  */
-export async function getEventList(): Promise<EventListResult> {
+/**
+ * Eén keer per build (proces): de header vraagt op ELKE pagina of er een
+ * komende voorstelling is (knop "Kaarten"), en de WP-host throttelt. Alleen
+ * een geslaagde fetch wordt bewaard. "Komend" wordt bij de build bepaald,
+ * dus binnen één build is dit resultaat stabiel.
+ */
+let eventListPromise: Promise<EventListResult> | null = null
+
+export function getEventList(): Promise<EventListResult> {
+  eventListPromise ??= buildEventList().catch((error) => {
+    eventListPromise = null
+    throw error
+  })
+  return eventListPromise
+}
+
+async function buildEventList(): Promise<EventListResult> {
   const events = await fetchAllEvents()
   const summaries: EventSummary[] = events.map((event) => ({
     id: event.id,
@@ -231,4 +284,62 @@ export async function getEventList(): Promise<EventListResult> {
     upcoming: summaries.filter((e) => e.isUpcoming).sort(byStartDate),
     past: summaries.filter((e) => !e.isUpcoming).sort(byStartDate).reverse(),
   }
+}
+
+// ============================================================================
+// Contactgegevens (footer, /contact)
+// ============================================================================
+
+/**
+ * Er is geen apart veld of endpoint voor contactgegevens. Ze staan wel als
+ * lopende tekst in de WP-pagina `over-ons`, onder de kop "Contactgegevens":
+ * twee lijstjes met naam + adresregels en "E-mail: …", "KvK-nummer: …" (plus
+ * IBAN en telefoon, die het ontwerp niet toont en die we dus niet
+ * uitlezen).
+ *
+ * Bewust TOLERANT: past de redactie de opmaak aan, dan valt een veld weg
+ * (null/leeg) in plaats van dat de build faalt of er iets verkeerds staat.
+ * We verzinnen niets en "repareren" de tekst niet (de postcode blijft zoals
+ * hij in het CMS staat).
+ */
+export function parseContactDetails(html: string, siteName = 'Stichting BAM'): ContactDetails {
+  const empty: ContactDetails = { email: null, addressLines: [], kvk: null }
+  if (!html) return empty
+  const $ = cheerio.load(html, null, false)
+  const heading = $('h2, h3, h4').filter((_, el) => /contactgegevens/i.test($(el).text())).first()
+  if (!heading.length) return empty
+
+  // Alle lijstregels tussen deze kop en de volgende kop.
+  const lists: string[][] = []
+  let node = heading.next()
+  while (node.length && !node.is('h1, h2, h3, h4')) {
+    if (node.is('ul, ol')) {
+      lists.push(node.find('li').toArray().map((li) => $(li).text().replace(/\s+/g, ' ').trim()).filter(Boolean))
+    }
+    node = node.next()
+  }
+  const lines = lists.flat()
+
+  const email = lines.join(' ').match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/)?.[0] ?? null
+  const kvk = lines.map((l) => l.match(/^kvk[^:]*:\s*([\d\s]+)$/i)?.[1]?.replace(/\s/g, '')).find(Boolean) ?? null
+  // Adres = regels zonder "label:" uit het eerste lijstje, minus de naam.
+  const addressLines = (lists[0] ?? []).filter((l) => !l.includes(':') && l.toLowerCase() !== siteName.toLowerCase())
+
+  return { email, addressLines, kvk }
+}
+
+/**
+ * Eén keer per build (proces) ophalen: de footer vraagt dit op elke pagina,
+ * en de WP-host throttelt. Alleen een geslaagde fetch wordt bewaard.
+ */
+let contactPromise: Promise<ContactDetails> | null = null
+
+export function getContactDetails(): Promise<ContactDetails> {
+  contactPromise ??= getPageDocument('over-ons')
+    .then((doc) => parseContactDetails(doc?.html ?? ''))
+    .catch((error) => {
+      contactPromise = null
+      throw error
+    })
+  return contactPromise
 }

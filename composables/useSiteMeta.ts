@@ -8,6 +8,14 @@ export function useSiteInfo() {
   })
 }
 
+/** Contactgegevens uit het CMS (zie getContactDetails), één keer gedeeld. */
+export function useContactDetails() {
+  return useFetch('/api/contact', {
+    key: 'contact-details',
+    default: () => ({ email: null, addressLines: [], kvk: null }),
+  })
+}
+
 export interface SeoInput {
   title: string
   description: string

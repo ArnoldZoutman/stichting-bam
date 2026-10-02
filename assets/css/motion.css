@@ -1,0 +1,194 @@
+/*
+ * Beweging — alleen CSS scroll-driven animations, geen JS-library.
+ * Keyframes en ranges uit design-reference/pages/Main.dc.html.
+ *
+ * Browsers zonder `animation-timeline` slaan het @supports-blok over en tonen
+ * de statische eindstand (de klassen doen daarbuiten niets). Bij
+ * `prefers-reduced-motion: reduce` staat alles uit, ook `.hint`.
+ *
+ * Gebruik:
+ *   .reveal       fade + 64px omhoog bij in beeld komen
+ *   .fan          boog waaiert open vanaf de onderkant
+ *   .rule         lijntje groeit vanuit het midden
+ *   .curtain-l/-r gordijnen schuiven open over de eerste 640px scroll (home)
+ *   .sun          stralenkrans draait/schaalt mee met scroll
+ *   .drift-l/-r   titelregels schuiven tegen elkaar in
+ *   .lift-a/-b    parallax van foto's
+ *   .progress     leesvoortgangsbalk
+ *   .hint         zachte op-en-neer-beweging ("het doek gaat op")
+ */
+
+@keyframes deco-rise {
+  from { opacity: 0; transform: translateY(64px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes deco-fan {
+  from { clip-path: circle(0% at 50% 100%); }
+  to { clip-path: circle(150% at 50% 100%); }
+}
+
+@keyframes deco-rule {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes curtain-l {
+  from { transform: translateX(0); }
+  to { transform: translateX(-102%); }
+}
+
+@keyframes curtain-r {
+  from { transform: translateX(0); }
+  to { transform: translateX(102%); }
+}
+
+@keyframes sun-spin {
+  from { transform: rotate(-12deg) scale(1); }
+  to { transform: rotate(18deg) scale(1.25); }
+}
+
+@keyframes drift-l {
+  from { transform: translateX(12%); }
+  to { transform: translateX(-18%); }
+}
+
+@keyframes drift-r {
+  from { transform: translateX(-18%); }
+  to { transform: translateX(12%); }
+}
+
+@keyframes lift-a {
+  from { transform: translateY(120px); }
+  to { transform: translateY(-40px); }
+}
+
+@keyframes lift-b {
+  from { transform: translateY(40px); }
+  to { transform: translateY(-80px); }
+}
+
+@keyframes progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes hint {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(8px); opacity: 1; }
+}
+
+@supports (animation-timeline: view()) {
+  /* Afwijking van het prototype (daar `cover 28%`): een element dat
+     volledig in beeld staat is hier altijd volledig dekkend. Anders staan
+     kaarten die bij het laden al zichtbaar zijn half doorzichtig tot je
+     scrolt — met te weinig tekstcontrast (WCAG 1.4.3, gemeten). */
+  .reveal {
+    animation: deco-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 100%;
+  }
+
+  .fan {
+    animation: deco-fan linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 45%;
+  }
+
+  .rule {
+    transform-origin: center;
+    animation: deco-rule linear both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 35%;
+  }
+
+  .curtain-l {
+    animation: curtain-l linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0px 640px;
+  }
+
+  .curtain-r {
+    animation: curtain-r linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0px 640px;
+  }
+
+  /* Range per hero instelbaar: de subpagina's gebruiken een kortere. */
+  .sun {
+    animation: sun-spin linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0px var(--sun-range, 900px);
+  }
+
+  .drift-l {
+    animation: drift-l linear both;
+    animation-timeline: view();
+  }
+
+  .drift-r {
+    animation: drift-r linear both;
+    animation-timeline: view();
+  }
+
+  .lift-a {
+    animation: lift-a linear both;
+    animation-timeline: view();
+  }
+
+  .lift-b {
+    animation: lift-b linear both;
+    animation-timeline: view();
+  }
+
+  .progress {
+    transform-origin: left;
+    animation: progress linear both;
+    animation-timeline: scroll(root);
+  }
+}
+
+/* Zonder scroll-timeline heeft een voortgangsbalk geen betekenis: verbergen. */
+@supports not (animation-timeline: view()) {
+  .progress {
+    display: none;
+  }
+
+  /* Eindstand van de gordijnen is "open": zonder scroll-timeline tonen we
+     die meteen in plaats van blijvend dichte gordijnen. */
+  .curtain-l,
+  .curtain-r {
+    display: none;
+  }
+}
+
+.hint {
+  animation: hint 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .fan,
+  .rule,
+  .curtain-l,
+  .curtain-r,
+  .sun,
+  .drift-l,
+  .drift-r,
+  .lift-a,
+  .lift-b,
+  .progress,
+  .hint {
+    animation: none !important;
+  }
+
+  /* De gordijnen bedekken anders blijvend een deel van de hero. */
+  .curtain-l,
+  .curtain-r {
+    display: none;
+  }
+
+  .progress {
+    display: none;
+  }
+}

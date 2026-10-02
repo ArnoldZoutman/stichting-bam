@@ -102,7 +102,9 @@ async function fetchPrerenderRoutes(): Promise<string[]> {
   const totalPages = Number(head.headers.get('x-wp-totalpages') ?? 1)
 
   const excluded: readonly string[] = excludedPageSlugs
-  const routes = new Set<string>(['/', '/nieuws', '/uitvoeringen', '/robots.txt', '/sitemap.xml'])
+  // `/contact` is een eigen Nuxt-pagina zonder WP-tegenhanger: expliciet
+  // opnemen, niet op crawlLinks vertrouwen.
+  const routes = new Set<string>(['/', '/nieuws', '/uitvoeringen', '/contact', '/robots.txt', '/sitemap.xml'])
   for (const page of pages) {
     // `home` wordt op `/` gerenderd. Uitgesloten placeholderpagina's (zie
     // config/navigation.ts) krijgen bewust GEEN route: die worden niet meer
@@ -141,14 +143,35 @@ export default defineNuxtConfig({
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       ],
+      // Het body- en kopfont staan op elke pagina boven de vouw; vooraf laden
+      // voorkomt een zichtbare font-wissel. Limelight (alleen accenten) niet.
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+        { rel: 'preload', href: '/fonts/josefin-sans-latin-var.woff2', as: 'font', type: 'font/woff2', crossorigin: '' },
+        { rel: 'preload', href: '/fonts/poiret-one-latin-400.woff2', as: 'font', type: 'font/woff2', crossorigin: '' },
+      ],
       // Staat hier en niet in app.vue: zo zit de tag in de <head> van ELKE
       // geprerenderde pagina, ook de pagina's die app.vue niet renderen
       // (404.html). Volgorde blijft zoals hier: eerst de loader, dan de init.
-      script: analyticsScripts,
+      // Eerst een inline vlag `html.js`, vóór de eerste paint: daarop klapt het
+      // mobiele menu in (AppHeader). Zo verspringt de layout niet bij
+      // hydratie. `finalize-404.mjs` strípt dit script uit 404.html, waar het
+      // menu daardoor gewoon open blijft — precies goed zonder JS.
+      script: [
+        { innerHTML: "document.documentElement.classList.add('js')", tagPosition: 'head' },
+        ...analyticsScripts,
+      ],
     },
   },
 
-  css: ['~/assets/css/main.css', '~/assets/css/wp-content.css'],
+  // Volgorde telt: tokens en fonts eerst, main.css aliast daarop, motion als laatste.
+  css: [
+    '~/assets/css/tokens.css',
+    '~/assets/css/fonts.css',
+    '~/assets/css/main.css',
+    '~/assets/css/wp-content.css',
+    '~/assets/css/motion.css',
+  ],
 
   nitro: {
     // Levert een output zonder serverbundel: alleen platte bestanden.

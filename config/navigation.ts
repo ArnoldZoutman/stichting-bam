@@ -15,9 +15,13 @@
  * De items verwijzen naar de slugs die daadwerkelijk in de API bestaan.
  * De ticketing-pagina's (`mijn-reserveringen`, `locaties`, `categorieen`,
  * `tags`) staan hier bewust niet in: die bevatten vrijwel geen redactionele
- * content. Zie README. `Uitvoeringen` wijst tegenwoordig naar de agenda die
- * uit Events Manager wordt opgebouwd (`pages/uitvoeringen/index.vue`), niet
- * meer naar de WP-pagina met dezelfde slug.
+ * content. Zie README. `Uitvoeringen` wijst naar de agenda die uit Events
+ * Manager wordt opgebouwd (`pages/uitvoeringen/index.vue`), niet naar de
+ * WP-pagina met dezelfde slug.
+ *
+ * Redesign (Art Deco): "Over BAM" blijft op het bestaande pad `/over-ons`
+ * (de WP-slug) zodat er geen redirect nodig is. "Home" staat er expliciet in
+ * (niet iedereen klikt op het logo); "Hart voor BAM" alleen in de footer.
  */
 
 export interface NavItem {
@@ -27,11 +31,26 @@ export interface NavItem {
 
 export const mainNavigation: NavItem[] = [
   { label: 'Home', to: '/' },
-  { label: 'Over ons', to: '/over-ons' },
   { label: 'Uitvoeringen', to: '/uitvoeringen' },
-  { label: 'Hart voor BAM', to: '/hart-voor-bam' },
   { label: 'Nieuws', to: '/nieuws' },
+  { label: 'Over BAM', to: '/over-ons' },
+  { label: 'Contact', to: '/contact' },
 ]
+
+/** Footermenu: het hoofdmenu plus pagina's die niet in de header passen. */
+export const footerNavigation: NavItem[] = [
+  ...mainNavigation,
+  { label: 'Hart voor BAM', to: '/hart-voor-bam' },
+]
+
+/**
+ * De knop "Kaarten" in de header. Alleen zichtbaar als er een komende
+ * voorstelling is (bepaald bij de build, `/api/nav`). Ticketing valt buiten
+ * scope en Events Manager levert geen kaartlink via de API; daarom wijst hij
+ * naar het programma. Komt er ooit een echte bestelpagina, dan is dit de
+ * enige plek.
+ */
+export const ticketsLink: NavItem = { label: 'Kaarten', to: '/uitvoeringen' }
 
 /**
  * Alle paginaslugs die de API kent en die deze frontend ook daadwerkelijk als

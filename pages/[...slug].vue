@@ -1,7 +1,12 @@
 <script setup lang="ts">
 /**
- * Catch-all voor alle WP-pagina's. Alle 9 pagina's hebben `parent: 0`, dus de
- * structuur is plat: we accepteren alleen een enkel pad-segment.
+ * Catch-all voor de overige WP-pagina's (o.a. "Hart voor BAM"). Alle 9
+ * pagina's hebben `parent: 0`, dus de structuur is plat: we accepteren alleen
+ * een enkel pad-segment. "Over ons" heeft een eigen pagina (pages/over-ons.vue).
+ *
+ * Opmaak in de stijl van het redesign: PageHero met de paginatitel, daaronder
+ * de CMS-tekst. Er is geen eyebrow of intro: die velden kent een WP-pagina
+ * niet, en we verzinnen ze niet.
  */
 const route = useRoute()
 
@@ -47,32 +52,61 @@ useWpSeo({
 </script>
 
 <template>
-  <div class="container">
-    <div class="page-header">
-      <h1>{{ titel }}</h1>
-    </div>
+  <div>
+    <PageHero :title="titel" />
 
-    <figure v-if="page?.featuredImage" class="page-hero">
-      <img
-        :src="page.featuredImage.src"
-        :srcset="page.featuredImage.srcset || undefined"
-        sizes="(max-width: 72rem) 100vw, 72rem"
-        :alt="page.featuredImage.alt"
-        :width="page.featuredImage.width"
-        :height="page.featuredImage.height"
-        decoding="async"
-      >
-    </figure>
+    <section class="page-body">
+      <div class="page-body__inner">
+        <figure v-if="page?.featuredImage" class="page-body__image">
+          <img
+            :src="page.featuredImage.src"
+            :srcset="page.featuredImage.srcset || undefined"
+            sizes="(max-width: 868px) 100vw, 820px"
+            :alt="page.featuredImage.alt"
+            :width="page.featuredImage.width"
+            :height="page.featuredImage.height"
+            decoding="async"
+          >
+        </figure>
 
-    <WpContent v-if="page && !page.isEmpty" :html="page.html" />
+        <WpContent v-if="page && !page.isEmpty" :html="page.html" />
 
-    <!--
-      Verwachte situatie, geen bug: een aantal pagina's bevat in WordPress
-      alleen een shortcode van een ticketing-/sliderplugin. Die shortcodes
-      worden door de REST API niet uitgevoerd, dus er is geen content.
-    -->
-    <div v-else class="content-notice">
-      <p>Deze pagina heeft in het CMS geen tekstuele inhoud. De oorspronkelijke pagina bestaat uit een plugin-onderdeel dat niet via de REST API beschikbaar is.</p>
-    </div>
+        <!--
+          Verwachte situatie, geen bug: een aantal pagina's bevat in WordPress
+          alleen een shortcode van een ticketing-/sliderplugin. Die shortcodes
+          worden door de REST API niet uitgevoerd, dus er is geen content.
+        -->
+        <div v-else class="content-notice">
+          <p>Deze pagina heeft in het CMS geen tekstuele inhoud. De oorspronkelijke pagina bestaat uit een plugin-onderdeel dat niet via de REST API beschikbaar is.</p>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
+
+<style scoped>
+.page-body {
+  padding: var(--section-y) var(--gutter);
+}
+
+.page-body__inner {
+  max-width: 820px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  font-size: 19px;
+  line-height: 1.8;
+  color: var(--bam-body);
+}
+
+.page-body__image {
+  margin: 0;
+}
+
+.page-body__image img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+</style>
