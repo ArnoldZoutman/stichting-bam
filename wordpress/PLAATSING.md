@@ -123,7 +123,9 @@ contactForm: {
 },
 ```
 
-Commit + merge naar `main`: de deploy bouwt de site opnieuw.
+Commit + merge naar `main`: de deploy bouwt de site opnieuw. Pas dan
+verschijnt het formulier op `/contact`; zolang `cf7FormId` `null` is, toont
+die pagina alleen de contactgegevens.
 
 ## 5. Eerste keer testen
 

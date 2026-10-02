@@ -14,11 +14,10 @@ export default defineAppConfig({
   /**
    * Contactformulier op /contact → Contact Form 7 op cms.stichting-bam.nl.
    *
-   * Versturen staat pas AAN zodra `cf7FormId` is ingevuld: het ID van het
-   * CF7-formulier dat volgens wordpress/PLAATSING.md ("Contactformulier") in
-   * wp-admin is aangemaakt. Zolang het `null` is, valideert het formulier wel
-   * maar meldt het bij verzenden eerlijk dat versturen nog niet kan en
-   * verwijst het naar het e-mailadres.
+   * Het formulier verschijnt pas zodra `cf7FormId` is ingevuld: het ID van
+   * het CF7-formulier dat volgens wordpress/PLAATSING.md ("Contactformulier")
+   * in wp-admin is aangemaakt. Zolang het `null` is, toont /contact alleen de
+   * contactgegevens.
    *
    * Publieke waarden (het endpoint staat in de browser van elke bezoeker),
    * dus geen secret. Bewust hier en niet via een env-variabele: de

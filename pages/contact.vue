@@ -8,12 +8,11 @@
  * niet staat, ontbreekt hier ook: social links, reactietermijn, kaart/foto.
  *
  * FORMULIER: geen eigen backend (statische site op Vimexx). Versturen gaat
- * naar Contact Form 7 op cms.stichting-bam.nl (utils/cf7.ts), zodra
- * `contactForm.cf7FormId` in app.config.ts is ingevuld. Zolang dat `null` is,
- * meldt het formulier na geldige invoer dat versturen nog niet kan en
- * verwijst het naar het e-mailadres. Bij elke fout (netwerk, mail_failed,
- * spam) blijft de invoer staan en volgt dezelfde verwijzing — er gaat nooit
- * stil een bericht verloren.
+ * naar Contact Form 7 op cms.stichting-bam.nl (utils/cf7.ts). Het formulier
+ * wordt pas GETOOND als `contactForm.cf7FormId` in app.config.ts is
+ * ingevuld; tot dan staan hier alleen de contactgegevens. Bij elke fout
+ * (netwerk, mail_failed, spam) blijft de invoer staan en volgt een
+ * verwijzing naar het e-mailadres — er gaat nooit stil een bericht verloren.
  */
 const { data: contact } = await useContactDetails()
 const { contactForm } = useAppConfig()
@@ -28,7 +27,9 @@ const subjects = [
 const form = reactive({ naam: '', email: '', onderwerp: subjects[0]!, bericht: '' })
 type Field = 'naam' | 'email' | 'bericht'
 const errors = reactive<Record<Field, string>>({ naam: '', email: '', bericht: '' })
-const status = ref<'idle' | 'sending' | 'sent' | 'unavailable' | 'failed'>('idle')
+/** Alleen met een ingevuld CF7-formulier-ID is er iets om naartoe te versturen. */
+const formEnabled = contactForm.cf7FormId != null
+const status = ref<'idle' | 'sending' | 'sent' | 'failed'>('idle')
 const failure = ref('')
 const sentNotice = ref<HTMLElement | null>(null)
 const fields = ref<Record<Field, HTMLInputElement | HTMLTextAreaElement | null>>({ naam: null, email: null, bericht: null })
@@ -52,10 +53,7 @@ async function onSubmit() {
     return
   }
 
-  if (contactForm.cf7FormId == null) {
-    status.value = 'unavailable'
-    return
-  }
+  if (contactForm.cf7FormId == null) return
 
   status.value = 'sending'
   const result = await submitToCf7(contactForm.cf7Base, contactForm.cf7FormId, {
@@ -109,7 +107,7 @@ useWpSeo({
 
     <section class="contact">
       <div class="contact__inner">
-        <div class="contact__form-col">
+        <div v-if="formEnabled" class="contact__form-col">
           <h2>Stuur een bericht</h2>
 
           <div v-if="status === 'sent'" ref="sentNotice" role="status" class="notice" tabindex="-1">
@@ -184,8 +182,8 @@ useWpSeo({
             </div>
 
             <div role="status" class="form__status">
-              <p v-if="status === 'unavailable' || status === 'failed'" class="notice notice--warn">
-                {{ status === 'failed' ? failure : 'Versturen via dit formulier is nog niet mogelijk.' }}
+              <p v-if="status === 'failed'" class="notice notice--warn">
+                {{ failure }}
                 <template v-if="contact.email">
                   Mail je bericht naar <a :href="`mailto:${contact.email}?subject=${encodeURIComponent(form.onderwerp)}`">{{ contact.email }}</a>.
                 </template>
@@ -194,7 +192,7 @@ useWpSeo({
           </form>
         </div>
 
-        <aside v-if="hasDetails" class="details" aria-labelledby="contactgegevens">
+        <aside v-if="hasDetails" class="details" :class="{ 'details--solo': !formEnabled }" aria-labelledby="contactgegevens">
           <h2 id="contactgegevens" class="details__title">Stichting BAM</h2>
           <dl>
             <div v-if="contact.email">
@@ -366,6 +364,12 @@ textarea:focus-visible {
 }
 
 /* ── Contactgegevens ───────────────────────────────────────────────────── */
+/* Zonder formulier staat het blok alleen: gecentreerd, niet uitgerekt. */
+.details.details--solo {
+  flex: 0 1 560px;
+  margin: 0 auto;
+}
+
 .details {
   flex: 1 1 320px;
   padding: 40px 34px;
