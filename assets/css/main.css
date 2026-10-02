@@ -1,16 +1,24 @@
 /* Basisstijl van de frontend. Plain CSS met custom properties; geen framework. */
 
+/*
+ * De ontwerp-tokens staan in tokens.css. De `--kleur-*`/`--lettertype*`-
+ * variabelen hieronder zijn aliassen daarop: wp-content.css (de opmaak van de
+ * WPBakery-output) gebruikt ze, en die selectors blijven bewust ongewijzigd.
+ * Let op: `--kleur-accent` is NIET oranje maar `--bam-label`, omdat hij ook
+ * als achtergrond onder witte tekst gebruikt wordt (oranje + wit haalt geen
+ * 4.5:1).
+ */
 :root {
-  --kleur-tekst: #1c1b1a;
-  --kleur-tekst-zacht: #55514c;
-  --kleur-achtergrond: #ffffff;
-  --kleur-vlak: #f4f2ef;
-  --kleur-rand: #e2ddd6;
-  --kleur-accent: #a8341f;
-  --kleur-accent-donker: #7d2617;
+  --kleur-tekst: var(--bam-ink);
+  --kleur-tekst-zacht: var(--bam-body);
+  --kleur-achtergrond: var(--bam-white);
+  --kleur-vlak: var(--bam-mist);
+  --kleur-rand: rgba(10, 42, 107, 0.2);
+  --kleur-accent: var(--bam-label);
+  --kleur-accent-donker: var(--bam-night);
 
   --breedte-tekst: 46rem;
-  --breedte-pagina: 72rem;
+  --breedte-pagina: var(--container);
 
   --ruimte-xs: 0.5rem;
   --ruimte-s: 1rem;
@@ -18,10 +26,10 @@
   --ruimte-l: 3rem;
   --ruimte-xl: 5rem;
 
-  --lettertype: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-  --lettertype-kop: Georgia, 'Times New Roman', serif;
+  --lettertype: var(--font-body);
+  --lettertype-kop: var(--font-display);
 
-  --radius: 3px;
+  --radius: 0;
 }
 
 *,
@@ -36,19 +44,66 @@ html {
 
 body {
   margin: 0;
-  font-family: var(--lettertype);
+  font-family: var(--font-body);
   font-size: 1.0625rem;
+  font-weight: 400;
   line-height: 1.65;
-  color: var(--kleur-tekst);
-  background: var(--kleur-achtergrond);
+  color: var(--bam-ink);
+  background: var(--bam-white);
+  /* Zonnestralen en drift-titels steken bewust buiten beeld; `clip` i.p.v.
+     `hidden` zodat `position: sticky` en de scroll-timeline blijven werken. */
+  overflow-x: clip;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-wrap: balance;
 }
 
 a {
-  color: var(--kleur-accent);
+  color: var(--bam-label);
 }
 
 a:hover {
-  color: var(--kleur-accent-donker);
+  color: var(--bam-ink);
+}
+
+/* WCAG 2.4.7/2.4.11: altijd een zichtbare focus, overal dezelfde. */
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* ---------- Decoratieve patronen (altijd aria-hidden in de markup) ---------- */
+
+.sunburst {
+  background: var(--sunburst);
+}
+
+.sunburst-light {
+  background: var(--sunburst-light);
+}
+
+.deco-pattern {
+  background-color: var(--bam-orange);
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.32) 25%, transparent 25%),
+    linear-gradient(225deg, rgba(255, 255, 255, 0.32) 25%, transparent 25%);
+  background-size: 28px 28px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 img {
@@ -58,9 +113,9 @@ img {
 
 .container {
   width: 100%;
-  max-width: var(--breedte-pagina);
+  max-width: calc(var(--container) + 2 * var(--gutter));
   margin-inline: auto;
-  padding-inline: var(--ruimte-s);
+  padding-inline: var(--gutter);
 }
 
 /* Toegankelijkheid: skiplink naar de hoofdinhoud. */

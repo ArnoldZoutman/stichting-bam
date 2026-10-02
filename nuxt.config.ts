@@ -141,6 +141,13 @@ export default defineNuxtConfig({
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       ],
+      // Het body- en kopfont staan op elke pagina boven de vouw; vooraf laden
+      // voorkomt een zichtbare font-wissel. Limelight (alleen accenten) niet.
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/logo.png' },
+        { rel: 'preload', href: '/fonts/josefin-sans-latin-var.woff2', as: 'font', type: 'font/woff2', crossorigin: '' },
+        { rel: 'preload', href: '/fonts/poiret-one-latin-400.woff2', as: 'font', type: 'font/woff2', crossorigin: '' },
+      ],
       // Staat hier en niet in app.vue: zo zit de tag in de <head> van ELKE
       // geprerenderde pagina, ook de pagina's die app.vue niet renderen
       // (404.html). Volgorde blijft zoals hier: eerst de loader, dan de init.
@@ -148,7 +155,14 @@ export default defineNuxtConfig({
     },
   },
 
-  css: ['~/assets/css/main.css', '~/assets/css/wp-content.css'],
+  // Volgorde telt: tokens en fonts eerst, main.css aliast daarop, motion als laatste.
+  css: [
+    '~/assets/css/tokens.css',
+    '~/assets/css/fonts.css',
+    '~/assets/css/main.css',
+    '~/assets/css/wp-content.css',
+    '~/assets/css/motion.css',
+  ],
 
   nitro: {
     // Levert een output zonder serverbundel: alleen platte bestanden.

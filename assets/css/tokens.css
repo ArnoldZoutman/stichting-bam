@@ -1,0 +1,40 @@
+/*
+ * Design tokens — Art Deco-ontwerp (bron: design-reference/DESIGN.md).
+ *
+ * Dit is de ENIGE plek waar kleuren, lettertypes en maatvoering van het
+ * ontwerp gedefinieerd worden. Componenten gebruiken alleen deze variabelen.
+ */
+
+:root {
+  /* ── Kleur ─────────────────────────────────────────────────────────────── */
+  --bam-night: #0a2a6b;        /* header, hero, footer, donkere vlakken */
+  --bam-ink: #0b1b3f;          /* tekst op licht, tekst op oranje knoppen */
+  --bam-orange: #ff9600;       /* logo-oranje: primaire knop, accentlijnen */
+  --bam-blue: #00a2ff;         /* logo-blauw: tweede accent, focusring */
+  --bam-sky: #e3f3ff;          /* lichtblauwe sectie-achtergrond */
+  --bam-mist: #f5faff;         /* kaart-achtergrond */
+  --bam-peach: #f0c587;        /* zachte oranje sectie */
+  --bam-white: #ffffff;
+  --bam-label: #005a94;        /* eyebrows/labels op licht (≥ 4.5:1 op wit en sky) */
+  --bam-body: #33466b;         /* lopende tekst, secundair, op licht */
+  --bam-body-on-night: #c9d8f5;
+
+  /* ── Typografie ────────────────────────────────────────────────────────── */
+  --font-display: 'Poiret One', 'Futura', serif;
+  --font-accent: 'Limelight', serif;
+  --font-body: 'Josefin Sans', 'Futura', 'Century Gothic', sans-serif;
+
+  /* ── Layout ────────────────────────────────────────────────────────────── */
+  --container: 1200px;
+  --gutter: 24px;
+  --section-y: clamp(80px, 11vw, 140px);
+  --section-y-lg: clamp(96px, 13vw, 160px);
+
+  /* ── Vaste patronen ────────────────────────────────────────────────────── */
+  --focus-ring: 3px solid var(--bam-blue);
+  --arch-radius: 300px 300px 0 0;
+  --card-border: 1.5px solid var(--bam-night);
+  --card-shadow-hover: 0 18px 40px rgba(10, 42, 107, 0.16);
+  --sunburst: repeating-conic-gradient(from 0deg at 50% 100%, rgba(0, 162, 255, 0.22) 0deg 3deg, transparent 3deg 9deg);
+  --sunburst-light: repeating-conic-gradient(from 0deg at 50% 100%, rgba(255, 255, 255, 0.22) 0deg 3deg, transparent 3deg 9deg);
+}
