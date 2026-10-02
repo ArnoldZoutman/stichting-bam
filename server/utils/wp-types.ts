@@ -100,7 +100,6 @@ export interface WpPost {
   _embedded?: {
     'wp:featuredmedia'?: WpMedia[]
     'wp:term'?: WpTerm[][]
-    author?: { id: number, name: string }[]
   }
 }
 
@@ -200,8 +199,6 @@ export interface PostSummary {
 /** Wat `/api/post/<slug>` teruggeeft aan de berichtpagina. */
 export interface PostDocument extends ContentDocument {
   categories: PostCategory[]
-  /** Weergavenaam van de auteur uit WordPress, of null. */
-  author: string | null
   /** Leestijd in minuten (200 woorden/min), minimaal 1. */
   readingMinutes: number
   /**
@@ -217,6 +214,16 @@ export interface PostListResult {
   page: number
   totalPages: number
   total: number
+}
+
+/**
+ * Contactgegevens zoals ze in het blok "Contactgegevens" van de WP-pagina
+ * `over-ons` staan (zie getContactDetails). Elk veld kan leeg zijn.
+ */
+export interface ContactDetails {
+  email: string | null
+  addressLines: string[]
+  kvk: string | null
 }
 
 /** Wat `/api/event/<slug>` teruggeeft aan de detailpagina. */

@@ -149,7 +149,7 @@ useWpSeo({
     <!-- Volgende voorstelling -->
     <section v-if="nextEvent" id="volgende" class="next" aria-labelledby="volgende-titel">
       <div class="next__grid">
-        <ArchFrame :image="nextEvent.featuredImage" sizes="(max-width: 900px) 100vw, 560px" />
+        <ArchFrame :image="nextEvent.featuredImage" sizes="(max-width: 900px) calc(100vw - 80px), 530px" />
         <div class="next__text reveal">
           <EyebrowLabel rule>{{ scene('next') }} · De volgende voorstelling</EyebrowLabel>
           <h2 id="volgende-titel">{{ nextEvent.title }}</h2>

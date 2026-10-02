@@ -33,6 +33,17 @@ export function toRoman(n: number): string {
   return out
 }
 
+const NUMBER_WORDS = [
+  'nul', 'één', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien',
+  'elf', 'twaalf', 'dertien', 'veertien', 'vijftien', 'zestien', 'zeventien', 'achttien',
+  'negentien', 'twintig',
+]
+
+/** "zes", of het cijfer zelf boven de twintig. */
+export function toDutchNumberWord(n: number): string {
+  return NUMBER_WORDS[n] ?? String(n)
+}
+
 export function toDutchOrdinal(n: number): string {
   return ORDINALS[n] ?? `${n}e`
 }

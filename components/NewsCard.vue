@@ -15,8 +15,10 @@ const props = withDefaults(
     showExcerpt?: boolean
     featured?: boolean
     headingLevel?: 2 | 3 | 4
+    /** Eerste kaart boven de vouw: niet lazy laden (LCP). */
+    eager?: boolean
   }>(),
-  { showExcerpt: true, featured: false, headingLevel: 3 },
+  { showExcerpt: true, featured: false, headingLevel: 3, eager: false },
 )
 
 const { formatDate } = useDutchDate()
@@ -32,11 +34,12 @@ const category = computed(() => props.post.categories?.[0]?.name)
         class="news-card__img"
         :src="post.featuredImage.src"
         :srcset="post.featuredImage.srcset || undefined"
-        :sizes="featured ? '(max-width: 900px) 100vw, 640px' : '(max-width: 760px) 100vw, 380px'"
+        :sizes="featured ? '(max-width: 900px) calc(100vw - 48px), 640px' : '(max-width: 760px) calc(100vw - 80px), (max-width: 1100px) calc(50vw - 60px), 350px'"
         :alt="post.featuredImage.alt"
         :width="post.featuredImage.width"
         :height="post.featuredImage.height"
-        loading="lazy"
+        :loading="eager ? 'eager' : 'lazy'"
+        :fetchpriority="eager ? 'high' : undefined"
         decoding="async"
       >
       <div v-else class="news-card__img sunburst" aria-hidden="true" />

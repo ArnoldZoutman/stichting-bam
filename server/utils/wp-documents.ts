@@ -8,6 +8,7 @@ import type {
   WpTerm,
   PostCategory,
   PostDocument,
+  ContactDetails,
   EventDocument,
   EventSummary,
   EventListResult,
@@ -22,6 +23,7 @@ import {
   fetchAllEvents,
   toResolvedImage,
 } from './wp-client'
+import * as cheerio from 'cheerio'
 import { htmlToText, stripShortcodes, transformContent, extractEventDescription, truncate, firstParagraphText } from './wp-content'
 import { excludedPageSlugs } from '~~/config/navigation'
 
@@ -127,7 +129,6 @@ export async function getPostDocument(slug: string): Promise<PostDocument | null
   return {
     ...doc,
     categories: postCategories(post),
-    author: post._embedded?.author?.[0]?.name || null,
     readingMinutes: Math.max(1, Math.round(words / 200)),
     intro: manualExcerpt(post),
   }
@@ -267,4 +268,62 @@ export async function getEventList(): Promise<EventListResult> {
     upcoming: summaries.filter((e) => e.isUpcoming).sort(byStartDate),
     past: summaries.filter((e) => !e.isUpcoming).sort(byStartDate).reverse(),
   }
+}
+
+// ============================================================================
+// Contactgegevens (footer, /contact)
+// ============================================================================
+
+/**
+ * Er is geen apart veld of endpoint voor contactgegevens. Ze staan wel als
+ * lopende tekst in de WP-pagina `over-ons`, onder de kop "Contactgegevens":
+ * twee lijstjes met naam + adresregels en "E-mail: …", "KvK-nummer: …" (plus
+ * IBAN en telefoon, die het ontwerp niet toont en die we dus niet
+ * uitlezen).
+ *
+ * Bewust TOLERANT: past de redactie de opmaak aan, dan valt een veld weg
+ * (null/leeg) in plaats van dat de build faalt of er iets verkeerds staat.
+ * We verzinnen niets en "repareren" de tekst niet (de postcode blijft zoals
+ * hij in het CMS staat).
+ */
+export function parseContactDetails(html: string, siteName = 'Stichting BAM'): ContactDetails {
+  const empty: ContactDetails = { email: null, addressLines: [], kvk: null }
+  if (!html) return empty
+  const $ = cheerio.load(html, null, false)
+  const heading = $('h2, h3, h4').filter((_, el) => /contactgegevens/i.test($(el).text())).first()
+  if (!heading.length) return empty
+
+  // Alle lijstregels tussen deze kop en de volgende kop.
+  const lists: string[][] = []
+  let node = heading.next()
+  while (node.length && !node.is('h1, h2, h3, h4')) {
+    if (node.is('ul, ol')) {
+      lists.push(node.find('li').toArray().map((li) => $(li).text().replace(/\s+/g, ' ').trim()).filter(Boolean))
+    }
+    node = node.next()
+  }
+  const lines = lists.flat()
+
+  const email = lines.join(' ').match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/)?.[0] ?? null
+  const kvk = lines.map((l) => l.match(/^kvk[^:]*:\s*([\d\s]+)$/i)?.[1]?.replace(/\s/g, '')).find(Boolean) ?? null
+  // Adres = regels zonder "label:" uit het eerste lijstje, minus de naam.
+  const addressLines = (lists[0] ?? []).filter((l) => !l.includes(':') && l.toLowerCase() !== siteName.toLowerCase())
+
+  return { email, addressLines, kvk }
+}
+
+/**
+ * Eén keer per build (proces) ophalen: de footer vraagt dit op elke pagina,
+ * en de WP-host throttelt. Alleen een geslaagde fetch wordt bewaard.
+ */
+let contactPromise: Promise<ContactDetails> | null = null
+
+export function getContactDetails(): Promise<ContactDetails> {
+  contactPromise ??= getPageDocument('over-ons')
+    .then((doc) => parseContactDetails(doc?.html ?? ''))
+    .catch((error) => {
+      contactPromise = null
+      throw error
+    })
+  return contactPromise
 }

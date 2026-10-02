@@ -144,8 +144,8 @@ useWpSeo({
           :hidden="active !== 'archief'"
         >
           <ul v-if="past.length" class="card-grid archive">
-            <li v-for="event in past" :key="event.id" class="reveal">
-              <EventCard :event="event" variant="archive" :num="numbers.get(event.id)?.roman" :heading-level="2" />
+            <li v-for="(event, i) in past" :key="event.id" class="reveal">
+              <EventCard :event="event" variant="archive" :num="numbers.get(event.id)?.roman" :heading-level="2" :eager="i === 0 && active === 'archief'" />
             </li>
           </ul>
           <p v-else class="empty">Er zijn nog geen eerdere voorstellingen.</p>

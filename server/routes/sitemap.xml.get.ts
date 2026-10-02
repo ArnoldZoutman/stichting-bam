@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
   ])
 
   const excluded: readonly string[] = excludedPageSlugs
-  const urls: string[] = [entry(`${site}/`), entry(`${site}/nieuws`), entry(`${site}/uitvoeringen`)]
+  const urls: string[] = [entry(`${site}/`), entry(`${site}/nieuws`), entry(`${site}/uitvoeringen`), entry(`${site}/contact`)]
 
   for (const page of pages) {
     // `home` wordt op `/` gerenderd en staat er al in. Uitgesloten

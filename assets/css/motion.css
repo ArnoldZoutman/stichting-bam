@@ -79,10 +79,14 @@
 }
 
 @supports (animation-timeline: view()) {
+  /* Afwijking van het prototype (daar `cover 28%`): een element dat
+     volledig in beeld staat is hier altijd volledig dekkend. Anders staan
+     kaarten die bij het laden al zichtbaar zijn half doorzichtig tot je
+     scrolt — met te weinig tekstcontrast (WCAG 1.4.3, gemeten). */
   .reveal {
     animation: deco-rise linear both;
     animation-timeline: view();
-    animation-range: entry 0% cover 28%;
+    animation-range: entry 0% entry 100%;
   }
 
   .fan {

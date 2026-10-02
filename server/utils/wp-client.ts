@@ -124,8 +124,8 @@ export async function fetchPostBySlug(slug: string): Promise<WpPost | null> {
   const posts = await wpFetch<WpPost[]>('/wp/v2/posts', {
     slug,
     per_page: 1,
-    // Auteur en categorieën in dezelfde request; `_links` is nodig voor _embed.
-    _embed: 'author,wp:term',
+    // Categorieën in dezelfde request; `_links` is nodig voor _embed.
+    _embed: 'wp:term',
     _fields: `${DOC_FIELDS},categories,tags,_links,_embedded`,
   })
   return posts[0] ?? null

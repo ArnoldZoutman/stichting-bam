@@ -2,11 +2,12 @@
 /**
  * Nieuwsbericht volgens design-reference/pages/Nieuwsbericht.dc.html.
  *
- * Uit WordPress: categorie (zonder de standaardcategorie), datum, auteur,
+ * Uit WordPress: categorie (zonder de standaardcategorie), datum,
  * uitgelichte afbeelding en de tekst. Leestijd is berekend (200 woorden per
  * minuut). De intro/lead verschijnt alleen bij een HANDMATIGE excerpt; een
  * automatische zou de eerste alinea dubbel tonen. Citaat-opmaak en
- * tussenkoppen komen uit de tekst zelf (wp-content.css).
+ * tussenkoppen komen uit de tekst zelf (wp-content.css). De auteur uit het
+ * prototype ("Door …") is op verzoek weggelaten.
  *
  * Delen: gewone links naar de deel-URL's van WhatsApp/Facebook en mailto —
  * geen scripts of embeds van derden.
@@ -71,7 +72,6 @@ useWpSeo({
           <h1>{{ post.title }}</h1>
           <span class="head__rule" aria-hidden="true" />
           <p v-if="post.intro" class="head__intro">{{ post.intro }}</p>
-          <p v-if="post.author" class="head__author">Door {{ post.author }}</p>
         </div>
       </header>
 
@@ -182,12 +182,6 @@ h1 {
   font-size: 22px;
   line-height: 1.6;
   color: var(--bam-body);
-}
-
-.head__author {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
 }
 
 /* Hoofdfoto staat, zoals in het prototype, nog in het lichtblauwe kopvlak. */

@@ -263,13 +263,17 @@
 
 /* ---------- Knoppen ---------- */
 
-/* oi_vc_button x9 */
+/* oi_vc_button x9
+   WPBakery zet inline `color: #ffffff; background: #ff9600; border-radius: 3px`.
+   Wit op oranje haalt 2.2:1 (WCAG 1.4.3 vraagt 4.5:1) en deze frontend doet
+   de vormgeving zelf, dus kleur, vlak en hoeken overschrijven we bewust met
+   !important. Lay-out uit de inline style (float, marge) blijft staan. */
 .wp-content .oi_vc_button {
   display: inline-block;
   padding: 0.65rem 1.4rem;
-  background: var(--kleur-accent);
-  color: var(--bam-ink);
-  border-radius: var(--radius);
+  background: var(--kleur-accent) !important;
+  color: var(--bam-ink) !important;
+  border-radius: var(--radius) !important;
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 700;
@@ -279,8 +283,8 @@
 }
 
 .wp-content .oi_vc_button:hover {
-  background: var(--kleur-accent-donker);
-  color: var(--bam-white);
+  background: var(--kleur-accent-donker) !important;
+  color: var(--bam-white) !important;
 }
 
 /* ---------- Word-plakresten ----------

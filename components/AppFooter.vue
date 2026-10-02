@@ -2,12 +2,14 @@
 import { footerNavigation } from '~/config/navigation'
 
 /**
- * Sitefooter. De contactkolom uit het prototype ([E-MAILADRES],
- * [ADRES / POSTADRES]) ontbreekt bewust: die gegevens staan nergens in de
- * WordPress-API en worden niet verzonnen. Zie het eindrapport van het
- * redesign.
+ * Sitefooter. De contactkolom komt uit het blok "Contactgegevens" op de
+ * WP-pagina "Over ons" (getContactDetails); ontbreekt dat, dan valt de kolom
+ * weg in plaats van dat er iets verzonnen wordt.
  */
 defineProps<{ siteName: string }>()
+
+const { data: contact } = await useContactDetails()
+const hasContact = computed(() => Boolean(contact.value.email || contact.value.addressLines.length))
 
 const jaar = new Date().getFullYear()
 </script>
@@ -18,6 +20,13 @@ const jaar = new Date().getFullYear()
       <div class="app-footer__brand">
         <img src="/logo.png" alt="" width="88" height="88" loading="lazy">
         <p>Bergse Alliantie voor Muziektheater</p>
+      </div>
+      <div v-if="hasContact" class="app-footer__contact">
+        <h2 class="app-footer__heading">Contact</h2>
+        <a v-if="contact.email" :href="`mailto:${contact.email}`">{{ contact.email }}</a>
+        <address v-if="contact.addressLines.length">
+          <template v-for="(line, i) in contact.addressLines" :key="line"><br v-if="i > 0">{{ line }}</template>
+        </address>
       </div>
       <nav class="app-footer__nav" aria-labelledby="footermenu-kop">
         <h2 id="footermenu-kop" class="app-footer__heading">Menu</h2>
@@ -82,6 +91,28 @@ const jaar = new Date().getFullYear()
   letter-spacing: 4px;
   text-transform: uppercase;
   color: var(--bam-orange);
+}
+
+.app-footer__contact {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--bam-body-on-night);
+}
+
+.app-footer__contact a {
+  color: var(--bam-white);
+  text-decoration-color: var(--bam-orange);
+}
+
+.app-footer__contact a:hover {
+  color: var(--link-on-night);
+}
+
+.app-footer__contact address {
+  font-style: normal;
 }
 
 .app-footer__nav ul {

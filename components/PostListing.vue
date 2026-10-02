@@ -110,7 +110,7 @@ useWpSeo({
         </p>
 
         <div v-if="featured" v-show="visible(featured)" class="reveal">
-          <NewsCard :post="featured" featured :heading-level="2" />
+          <NewsCard :post="featured" featured :heading-level="2" eager />
         </div>
 
         <ul v-if="rest.length" class="card-grid">

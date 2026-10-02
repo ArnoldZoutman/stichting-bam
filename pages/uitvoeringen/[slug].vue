@@ -80,7 +80,7 @@ useWpSeo({
               :image="event.featuredImage"
               :fan="false"
               eager
-              sizes="(max-width: 900px) 100vw, 460px"
+              sizes="(max-width: 508px) calc(100vw - 80px), 428px"
             />
           </div>
         </div>
@@ -89,7 +89,7 @@ useWpSeo({
 
     <section class="about" aria-labelledby="over-de-voorstelling">
       <div class="about__inner">
-        <div class="about__text reveal">
+        <div class="about__text">
           <EyebrowLabel id="over-de-voorstelling" tag="h2">Over de voorstelling</EyebrowLabel>
           <WpContent v-if="!event.isEmpty" :html="event.html" />
           <p v-else class="about__empty">Deze voorstelling heeft geen tekstuele inhoud.</p>
@@ -97,7 +97,7 @@ useWpSeo({
             <BamButton to="/uitvoeringen" variant="secondary">Alle uitvoeringen</BamButton>
           </div>
         </div>
-        <aside v-if="period || time || event.locationName" class="practical reveal" aria-labelledby="praktisch">
+        <aside v-if="period || time || event.locationName" class="practical" aria-labelledby="praktisch">
           <h2 id="praktisch" class="practical__title">Praktisch</h2>
           <dl>
             <div v-if="period">

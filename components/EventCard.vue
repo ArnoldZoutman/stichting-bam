@@ -20,8 +20,10 @@ const props = withDefaults(
     /** Productienummer (Romeins), afgeleid door de aanroeper. */
     num?: string
     headingLevel?: 2 | 3 | 4
+    /** Eerste kaart boven de vouw: niet lazy laden (LCP). */
+    eager?: boolean
   }>(),
-  { variant: 'program', num: undefined, headingLevel: 3 },
+  { variant: 'program', num: undefined, headingLevel: 3, eager: false },
 )
 
 const { eventDateParts } = useEventDate()
@@ -40,11 +42,12 @@ const archiveMeta = computed(() =>
         class="event-card__img"
         :src="event.featuredImage.src"
         :srcset="event.featuredImage.srcset || undefined"
-        sizes="(max-width: 760px) 100vw, 380px"
+        sizes="(max-width: 760px) calc(100vw - 80px), (max-width: 1100px) calc(50vw - 60px), 350px"
         :alt="event.featuredImage.alt"
         :width="event.featuredImage.width"
         :height="event.featuredImage.height"
-        loading="lazy"
+        :loading="eager ? 'eager' : 'lazy'"
+        :fetchpriority="eager ? 'high' : undefined"
         decoding="async"
       >
       <div v-else class="event-card__img sunburst" aria-hidden="true" />
