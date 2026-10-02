@@ -53,7 +53,8 @@ function onKeydown(event: KeyboardEvent) {
   >
     <div class="app-header__inner">
       <NuxtLink to="/" class="app-header__logo">
-        <img src="/logo.png" :alt="`${siteName} – naar de startpagina`" width="64" height="64">
+        <!-- Boven de vouw op elke pagina; zonder prioriteit wacht hij achter de affiches uit het CMS (gemeten ~3 s). -->
+        <img src="/logo.png" :alt="`${siteName} – naar de startpagina`" width="64" height="64" fetchpriority="high">
       </NuxtLink>
 
       <button

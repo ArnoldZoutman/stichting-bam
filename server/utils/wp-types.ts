@@ -100,6 +100,7 @@ export interface WpPost {
   _embedded?: {
     'wp:featuredmedia'?: WpMedia[]
     'wp:term'?: WpTerm[][]
+    author?: { id: number, name: string }[]
   }
 }
 
@@ -179,6 +180,13 @@ export interface ContentDocument {
   isEmpty: boolean
 }
 
+/** Categorie zoals de frontend hem toont; de standaardcategorie valt eruit. */
+export interface PostCategory {
+  id: number
+  name: string
+  slug: string
+}
+
 export interface PostSummary {
   id: number
   slug: string
@@ -186,6 +194,22 @@ export interface PostSummary {
   description: string
   date: string
   featuredImage: ResolvedImage | null
+  categories: PostCategory[]
+}
+
+/** Wat `/api/post/<slug>` teruggeeft aan de berichtpagina. */
+export interface PostDocument extends ContentDocument {
+  categories: PostCategory[]
+  /** Weergavenaam van de auteur uit WordPress, of null. */
+  author: string | null
+  /** Leestijd in minuten (200 woorden/min), minimaal 1. */
+  readingMinutes: number
+  /**
+   * Alleen een HANDMATIG geschreven excerpt, als platte tekst. Een
+   * automatische excerpt is gewoon het begin van de tekst en zou als intro
+   * de eerste alinea dubbel tonen; dan is dit leeg.
+   */
+  intro: string
 }
 
 export interface PostListResult {

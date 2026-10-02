@@ -5,6 +5,9 @@ import type {
   WpPage,
   WpPost,
   WpEvent,
+  WpTerm,
+  PostCategory,
+  PostDocument,
   EventDocument,
   EventSummary,
   EventListResult,
@@ -95,9 +98,39 @@ export async function getPageDocument(slug: string): Promise<ContentDocument | n
   return page ? await toDocument(page) : null
 }
 
-export async function getPostDocument(slug: string): Promise<ContentDocument | null> {
+/**
+ * De standaardcategorie ("Geen categorie"; "Uncategorized" komt uit de
+ * demo-import) zegt niets over een bericht en tonen we niet als label of
+ * filter.
+ */
+const DEFAULT_CATEGORY_SLUGS = ['geen-categorie', 'uncategorized']
+
+function postCategories(post: WpPost): PostCategory[] {
+  const terms = (post._embedded?.['wp:term'] ?? []).flat() as WpTerm[]
+  return terms
+    .filter((t) => t.taxonomy === 'category' && !DEFAULT_CATEGORY_SLUGS.includes(t.slug))
+    .map((t) => ({ id: t.id, name: decodeTitle(t.name), slug: t.slug }))
+}
+
+/** WordPress zet `[&hellip;]` achter een automatisch gegenereerde excerpt. */
+function manualExcerpt(post: WpPost): string {
+  const raw = post.excerpt?.rendered ?? ''
+  if (!raw.trim() || /\[(&hellip;|…)\]/.test(raw)) return ''
+  return excerptToText(raw)
+}
+
+export async function getPostDocument(slug: string): Promise<PostDocument | null> {
   const post = await fetchPostBySlug(slug)
-  return post ? await toDocument(post) : null
+  if (!post) return null
+  const doc = await toDocument(post)
+  const words = htmlToText(doc.html).split(/\s+/).filter(Boolean).length
+  return {
+    ...doc,
+    categories: postCategories(post),
+    author: post._embedded?.author?.[0]?.name || null,
+    readingMinutes: Math.max(1, Math.round(words / 200)),
+    intro: manualExcerpt(post),
+  }
 }
 
 /** Pakt de featured image uit `_embedded` (scheelt een request per bericht). */
@@ -120,6 +153,7 @@ export async function getPostList(page: number, perPage = 6): Promise<PostListRe
       description: truncate(excerptToText(post.excerpt?.rendered ?? ''), 180),
       date: post.date,
       featuredImage: embeddedImage(post),
+      categories: postCategories(post),
     })),
   }
 }
