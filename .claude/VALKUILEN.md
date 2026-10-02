@@ -132,6 +132,70 @@ dus geen cosmetiek — zonder is het project niet installeerbaar.
 peer-deps van Nuxt met `Cannot read properties of null (reading 'edgesOut')`.
 npm 11+ werkt wel.
 
+## 9. `:global(.x) .y` in scoped CSS wordt gewoon `.x`
+
+**Symptoom.** Op mobiel kreeg `<html>` de stijlen van het menu (hoofdletters,
+oranje rand) zodra de klasse `js` erop stond.
+
+**Oorzaak.** Vue compileert `:global(.js) .app-header__nav { … }` naar
+`.js { … }`: alles na `:global()` valt weg.
+
+**Opgelost met.** `html.js .app-header__nav` — dat scopet Vue gewoon op het
+laatste deel. Kijk bij twijfel in de gegenereerde CSS in `dist/`.
+
+## 10. Klasse op de root van een child-component: CSS-volgorde wisselt
+
+**Symptoom.** CLS 0.025 op de voorstellingspagina: het affiche versprong van
+568 naar 460 px breed.
+
+**Oorzaak.** `class="hero__poster"` (pagina, `width: min(460px, 100%)`) en
+`.arch` (ArchFrame, `width: 100%`) hebben gelijke specificiteit. Welke wint
+hangt af van de volgorde van de CSS-bestanden, en die verandert bij hydratie.
+
+**Opgelost met.** De maat op een wrapper-`div` in de pagina. Meet CLS met een
+`PerformanceObserver('layout-shift')` en lees `sources` uit.
+
+## 11. `location.hash` is leeg tijdens hydratie
+
+**Symptoom.** `/uitvoeringen#komend` opende toch het tabblad Archief.
+
+**Oorzaak.** In `onMounted` was `window.location.hash` (nog) leeg; de router
+zet hem later terug.
+
+**Opgelost met.** `useRoute().hash`.
+
+## 12. Het headerlogo wachtte achter de CMS-affiches
+
+**Symptoom.** Logo pas na 2.8–4.6 s zichtbaar; screenshots toonden een lege
+header.
+
+**Opgelost met.** `fetchpriority="high"` op het logo (nu < 0.15 s). Zelfde
+reden voor `eager` op de eerste kaart van een overzicht en kloppende `sizes`:
+met `sizes="100vw"` koos mobiel het origineel van 859 KB.
+
+## 13. WPBakery zet kleuren inline
+
+**Symptoom.** Knoppen in de content (`oi_vc_button`) wit op oranje, 2.2:1.
+
+**Oorzaak.** `style="color:#ffffff; background:#ff9600"` in de HTML wint van
+elke selector.
+
+**Opgelost met.** `!important` op kleur/vlak/hoeken in `wp-content.css`, met
+uitleg erbij. Alleen voor kleur, niet voor lay-out.
+
+## 14. Scroll-reveal maakt zichtbare tekst half doorzichtig
+
+**Symptoom.** Lighthouse meldde contrast 2.0–3.7:1 op tekst die normaal 6–7:1
+haalt.
+
+**Oorzaak.** `.reveal` (fade via `animation-timeline: view()`) staat bij het
+laden halverwege voor elementen die al in beeld zijn — en blijft zo tot de
+bezoeker scrolt.
+
+**Opgelost met.** Range `entry 0% entry 100%`, en geen `.reveal` op wat bij het
+laden in beeld staat (formulier, hoofdtekst, uitgelichte kaart, eerste
+archiefrij). Controle: tel elementen in beeld met een opgetelde opacity < 1.
+
 ---
 
 ## Testrecepten

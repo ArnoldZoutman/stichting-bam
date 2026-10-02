@@ -63,15 +63,17 @@ synchroniseert wist daarmee de live site.
 `dist/` bevat dus altijd de laatste build die is goedgekeurd. Dit is
 geverifieerd met drie faaltests; zie `.claude/VALKUILEN.md`.
 
-### 4. Het `event`-posttype is niet bereikbaar
+### 4. Voorstellingen komen via een eigen mu-plugin
 
-De zes uitvoeringen (`/uitvoeringen/tegen-tijd/` enz.) bestaan in WordPress als
-custom post type `event`, maar zijn geregistreerd zonder `show_in_rest` en
-komen in géén enkel REST-endpoint voor. Deze frontend kan ze principieel niet
-tonen; links ernaartoe wijzen daarom bewust naar de WordPress-site.
+De uitvoeringen zijn het custom post type `event` van Events Manager. Dat
+stond zonder `show_in_rest`; `wordpress/bam-events-rest.php` (mu-plugin op
+cms.stichting-bam.nl) zet het aan als `/wp/v2/events` en voegt datum, tijd en
+locatienaam toe. **Meer levert de API niet**: geen speeldata per voorstelling,
+status, kaartlink, prijs, duur, cast of galerij — en `event_location_name` is
+op dit moment bij alle events leeg. Het ontwerp toont die blokken daarom niet.
 
-Dit en de Revolution Slider op de homepage zijn de twee blokkades voor een
-volledige overstap. Zie `MIGRATIE.md`.
+De Revolution Slider op de homepage (en de "impressie" bij Karavaan) blijft
+onbereikbaar. Zie `MIGRATIE.md`.
 
 ---
 
@@ -88,6 +90,12 @@ volledige overstap. Zie `MIGRATIE.md`.
 | Links alleen intern maken als we het pad serveren | Anders worden de plugin-pagina's herschreven naar interne 404's |
 | Yarn 4 met `nodeLinker: node-modules` | npm 10.9.x klapt eruit op Nuxt's peer-deps; Yarn PnP breekt Nuxt (`@nuxt/kit` niet resolvebaar) |
 | Geen ISR/SWR/routeRules/purge | Vereist een draaiende server; zou dode configuratie zijn |
+| Redesign (okt 2026): plain CSS met tokens in `assets/css/tokens.css`, geen UI-library | Ontwerp in `design-reference/`; componenten zijn dunne SFC's met scoped CSS |
+| Fonts lokaal in `public/fonts/`, geen `@nuxt/fonts` | Geen call naar Google, ook niet tijdens de build; geen extra dependency |
+| Geen `@nuxt/image` | Bij een statische build haalt het elke WP-afbeelding op en bewerkt die: precies de belasting waar de host 508 op geeft. `srcset` uit WP + juiste `sizes` |
+| Productienummers (I–VI) afgeleid, chronologisch | Events Manager kent geen productienummer (`composables/useProductions.ts`) |
+| Contactgegevens geparsed uit de tekst van "Over ons" | Geen veld of endpoint; parser is tolerant en laat velden weg als de opmaak verandert (`getContactDetails`) |
+| Feature-flags in `app.config.ts` (`newsletter`, `contactFormSubmit`), beide uit | Nieuwsbrief en verzending van het contactformulier zijn nog niet gekozen/gekoppeld |
 | GA4 aan/uit via een eigen `GA_MEASUREMENT_ID`, alleen gezet in de deploy-workflow | Alleen de gepubliceerde site mag meten. Bewust NIET afgeleid van `NUXT_PUBLIC_SITE_URL`: die zet je lokaal juist ook op de productie-URL om canonicals/OG/sitemap te controleren, en dan zou die controlebuild echte pageviews sturen |
 
 ## Wat bewust NIET is gedaan
@@ -103,21 +111,22 @@ volledige overstap. Zie `MIGRATIE.md`.
 
 ## Wat nog openstaat
 
-Technisch af, maar deze punten bepalen of het toonbaar is:
+Technisch af, maar deze punten bepalen of het toonbaar is (stand 2 okt 2026):
 
-1. **De hero op `/over-ons` klopt inhoudelijk niet.** `featured_media` is daar
-   een 2000×2000 witte muurtextuur die het thema als sectie-achtergrond
-   gebruikte, niet als hero. De pagina opent nu met een bijna leeg vlak.
-2. **`/tags`, `/categorieen`, `/locaties`, `/mijn-reserveringen` tonen letterlijk
-   het woord "CONTENTS".** Dat staat zo in het CMS; de ticketingplugin vervangt
-   het op de live site. Ze staan ook in de sitemap. Voor `tags` en `categorieen`
-   is dat op te lossen zonder WordPress aan te raken — die taxonomieën zitten
-   wél in de API (5 categorieën, 5 tags).
-3. **De 7 berichten zijn lorem ipsum** uit de thema-demo-import, net als de
-   categorieën ("Innovations", "Lifestyle") en tags ("PHP", "Wordpress").
-4. **Er is nog geen git-repo.** `git init` voordat dit ergens heen gaat.
-5. **`NUXT_PUBLIC_SITE_URL` staat standaard op `http://localhost:3000`.** Zonder
+1. **Contactformulier verstuurt nog niets.** Validatie is af; de verzendroute
+   (Contact Form 7 op cms, externe dienst of alleen mailto) moet gekozen
+   worden. Tot dan staat `features.contactFormSubmit` uit en verwijst het
+   formulier naar het e-mailadres.
+2. **Redactioneel in Events Manager/WordPress:** locaties invullen (nu leeg),
+   echte nieuwscategorieën aanmaken (nu alleen "Geen categorie" in gebruik),
+   lichtere affiches uploaden (Tegen Tijd: 859 KB, geen formaat tussen 200 en
+   683 px), de zin over de "impressie" bij Karavaan verwijst naar een slider
+   die niet via de API komt.
+3. **Kaarten:** er is geen kaartlink per voorstelling in de API; de knop
+   "Kaarten" wijst naar `/uitvoeringen`. Hart voor BAM linkt wel naar
+   `stichting-bam.weticket.io` — een kandidaat-bron.
+4. **`NUXT_PUBLIC_SITE_URL` staat standaard op `http://localhost:3000`.** Zonder
    die variabele wijzen canonicals, OG-URL's, `robots.txt` en `sitemap.xml` naar
-   localhost.
-6. **Rebuild na publicatie is handwerk.** De site is statisch; nieuwe content in
-   WordPress verschijnt pas na een nieuwe `yarn release`.
+   localhost. De deploy-workflow zet hem.
+5. **`404.html` preloadt `/404/_payload.json`**, dat `finalize-404.mjs` weghaalt:
+   een 404 in de console. Eén regel in dat script.
