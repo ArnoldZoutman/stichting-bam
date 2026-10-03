@@ -162,6 +162,7 @@ onBeforeUnmount(() => {
           class="track"
           :class="{ 'track--single': !multiple }"
           tabindex="0"
+          role="group"
           aria-label="Foto's"
           @click="onTrackClick"
         >
@@ -294,10 +295,13 @@ onBeforeUnmount(() => {
   --gap: 24px;
 }
 
+/* Smal: de track loopt door tot in de paginamarges, zodat 88cqw ook echt
+   ~88% van het scherm is (anders 88% van de container ≈ 76% van het scherm). */
 @media (max-width: 760px) {
   .gallery__viewport {
     --slide-w: 88cqw;
     --gap: 12px;
+    margin-inline: calc(-1 * var(--gutter));
   }
 }
 
