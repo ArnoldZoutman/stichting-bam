@@ -11,7 +11,8 @@
     "release": "node scripts/reset-report.mjs && nuxt generate && node scripts/finalize-404.mjs && node scripts/verify-build.mjs && node scripts/stage-release.mjs",
     "preview": "npx --yes serve .output/public",
     "postinstall": "nuxt prepare",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "test": "node --test --experimental-strip-types 'tests/**/*.test.mjs'"
   },
   "dependencies": {
     "cheerio": "^1.0.0",

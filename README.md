@@ -46,9 +46,15 @@ yarn generate          # alleen bouwen
 yarn verify            # alleen de faal-check (voor CI, of op een bestaande output)
 yarn preview           # npx serve op .output/public
 yarn typecheck         # vue-tsc
+yarn test              # unittests (node --test), zie hieronder
 ```
 
 Vereist Node `^20.19.0 || >=22.12.0` (eis van Nuxt 3.21).
+
+`yarn test` draait de unittests in `tests/` met de ingebouwde testrunner van
+Node en `--experimental-strip-types` (TypeScript zonder build-stap). Dat
+vereist **Node >= 22.6**; onder Node 20 faalt het script. Daarom draait
+`yarn test` (nog) niet mee in de GitHub-workflow. Geen extra dependencies.
 
 > **`.yarnrc.yml` is niet optioneel.** Nuxt werkt niet onder Yarn's standaard
 > Plug'n'Play-linker: de Nuxt CLI kan dan zijn eigen `@nuxt/kit` niet resolven

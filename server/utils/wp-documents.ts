@@ -10,6 +10,7 @@ import type {
   PostDocument,
   ContactDetails,
   CarouselItem,
+  EventGalleryItem,
   EventDocument,
   EventSummary,
   EventListResult,
@@ -24,8 +25,10 @@ import {
   fetchAllEvents,
   fetchHomeCarousel,
   toResolvedImage,
+  buildSrcSet,
 } from './wp-client'
 import * as cheerio from 'cheerio'
+import { extractGallery, type ExtractedGallery } from './wp-gallery'
 import { htmlToText, stripShortcodes, transformContent, extractEventDescription, truncate, firstParagraphText } from './wp-content'
 import { excludedPageSlugs } from '~~/config/navigation'
 
@@ -216,21 +219,66 @@ function eventFields(event: WpEvent): EventFields {
   }
 }
 
+/**
+ * Zet de geëxtraheerde galerij om naar EventGalleryItem's, in de volgorde van
+ * WordPress. Per foto de mediagegevens uit één verzoek naar wp/v2/media
+ * (srcset uit media_details.sizes, alt, caption); lukt dat niet, of ontbreekt
+ * een ID, dan de attributen van de <img> uit de HTML. Foto's zonder bruikbare
+ * src/breedte/hoogte vallen eruit (zouden layout shift geven).
+ */
+async function resolveGallery(extracted: ExtractedGallery, slug: string): Promise<EventGalleryItem[]> {
+  if (!extracted.fallbackItems.length) return []
+
+  const media = extracted.ids.length ? await fetchMediaByIds(extracted.ids, { optional: true }) : new Map()
+  const missing = extracted.ids.filter((id) => !media.has(id))
+  if (missing.length) {
+    console.warn(`[galerij ${slug}] ${missing.length} van ${extracted.ids.length} foto's niet uit de media-API; terugval op de HTML`)
+  }
+
+  const items: EventGalleryItem[] = []
+  for (const fallback of extracted.fallbackItems) {
+    const m = fallback.id ? media.get(fallback.id) : undefined
+    const width = m?.media_details?.width || fallback.width
+    const height = m?.media_details?.height || fallback.height
+    const src = m?.media_details?.sizes?.large?.source_url || m?.source_url || fallback.src
+    if (!src || !width || !height) continue
+    items.push({
+      id: fallback.id,
+      src,
+      srcset: (m ? buildSrcSet(m) : '') || fallback.srcset,
+      width,
+      height,
+      alt: (m ? m.alt_text ?? '' : fallback.alt).trim(),
+      caption: m?.caption?.rendered ? htmlToText(m.caption.rendered) : fallback.caption,
+      orientation: height > width ? 'portrait' : 'landscape',
+    })
+  }
+  return items
+}
+
 async function toEventDocument(event: WpEvent): Promise<EventDocument> {
   const description = extractEventDescription(event.content.rendered)
-  const { html, text } = await transformContent(description, siteUrl())
+  // De eerste galerij krijgt een eigen sectie; uit de lopende tekst halen
+  // zodat de foto's niet dubbel verschijnen.
+  const extracted = extractGallery(description)
+  const { html, text } = await transformContent(extracted.contentWithoutGallery, siteUrl())
   const featuredImage = await resolveFeatured(event.featured_media)
+  const gallery = await resolveGallery(extracted, event.slug)
+  // Na het weghalen van de galerij kunnen er alleen lege <p>'s (&nbsp;) over
+  // zijn; dan is er geen beschrijving (de pagina laat de kop dan weg).
+  const hasContent = text.trim().length > 0 || /<(img|iframe|video|audio)\b/i.test(html)
   return {
     id: event.id,
     slug: event.slug,
     title: decodeTitle(event.title.rendered),
-    html,
+    html: hasContent ? html : '',
     description: buildDescription(event.excerpt?.rendered ?? '', text),
     lead: firstParagraphText(html),
     date: event.date,
     modified: event.modified,
     featuredImage,
-    isEmpty: html.length === 0,
+    isEmpty: !hasContent,
+    gallery,
     ...eventFields(event),
   }
 }
