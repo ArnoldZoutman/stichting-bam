@@ -210,8 +210,11 @@ async function main() {
       .filter(Boolean)
       .map((line) => { try { return JSON.parse(line) } catch { return { message: line } } })
 
-    const hard = entries.filter((e) => e.severity !== 'recovered')
+    const hard = entries.filter((e) => e.severity !== 'recovered' && e.severity !== 'optional')
     const recovered = entries.filter((e) => e.severity === 'recovered')
+    // Optionele bronnen (homepage-carrousel): de pagina laat dat onderdeel
+    // weg. Geen reden om af te keuren — wel om het te zien.
+    const optional = entries.filter((e) => e.severity === 'optional')
 
     if (hard.length) {
       fail(`${hard.length} mislukte API-call(s) tijdens het prerenderen:`)
@@ -227,7 +230,10 @@ async function main() {
         ` (statussen: ${[...new Set(recovered.map((e) => e.status))].join(', ')}).` +
         ` De build is goed, maar WordPress zat tegen zijn limiet aan.`)
     }
-    if (!hard.length && !recovered.length) note('geen mislukte API-calls tijdens het prerenderen')
+    for (const f of optional) {
+      note(`LET OP: optionele bron niet opgehaald (HTTP ${f.status ?? 'n.v.t.'} op ${f.url}) — dat onderdeel is weggelaten, de build is verder goed.`)
+    }
+    if (!hard.length && !recovered.length && !optional.length) note('geen mislukte API-calls tijdens het prerenderen')
   } else {
     note('geen logbestand met API-fouten (er ging niets mis)')
   }

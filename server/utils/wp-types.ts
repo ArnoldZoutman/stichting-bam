@@ -226,6 +226,28 @@ export interface ContactDetails {
   kvk: string | null
 }
 
+/**
+ * Eén foto van de homepage-carrousel, zoals `/api/home-carousel` hem aan de
+ * frontend geeft. Afgeleid van `bam/v1/home-carousel`; `src`, `width` en
+ * `height` zijn het formaat `large`. De `sizes` uit de API nemen we bewust
+ * NIET over: die is de WordPress-standaard ("1024px breed") en klopt niet
+ * met de breedte van een dia (zie HomeCarousel.vue).
+ */
+export interface CarouselItem {
+  id: number
+  src: string
+  srcset: string
+  width: number
+  height: number
+  full: string
+  /** Platte tekst uit WordPress; leeg = decoratief (`alt=""`). */
+  alt: string
+  /** Platte tekst uit WordPress; leeg = geen onderschrift. */
+  caption: string
+  /** Staande foto: in de 3:2-track `contain` i.p.v. `cover`. */
+  portrait: boolean
+}
+
 /** Wat `/api/event/<slug>` teruggeeft aan de detailpagina. */
 export interface EventDocument extends ContentDocument, EventFields {}
 
