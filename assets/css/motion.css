@@ -14,6 +14,8 @@
  *   .sun          stralenkrans draait/schaalt mee met scroll
  *   .drift-l/-r   titelregels schuiven tegen elkaar in
  *   .lift-a/-b    parallax van foto's
+ *   .lift-tile    subtiele parallax van een foto BINNEN een tegel (±6%); de
+ *                 tegel zelf blijft staan, zodat hij niet over buren schuift
  *   .progress     leesvoortgangsbalk
  *   .hint         zachte op-en-neer-beweging ("het doek gaat op")
  */
@@ -61,6 +63,11 @@
 @keyframes lift-a {
   from { transform: translateY(120px); }
   to { transform: translateY(-40px); }
+}
+
+@keyframes lift-tile {
+  from { transform: translateY(6%); }
+  to { transform: translateY(-6%); }
 }
 
 @keyframes lift-b {
@@ -131,6 +138,11 @@
     animation-timeline: view();
   }
 
+  .lift-tile {
+    animation: lift-tile linear both;
+    animation-timeline: view();
+  }
+
   .lift-a {
     animation: lift-a linear both;
     animation-timeline: view();
@@ -176,6 +188,7 @@
   .drift-l,
   .drift-r,
   .lift-a,
+  .lift-tile,
   .lift-b,
   .progress,
   .hint {

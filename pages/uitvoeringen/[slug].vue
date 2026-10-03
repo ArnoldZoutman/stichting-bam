@@ -10,6 +10,13 @@
  * `event_location_name` gevuld is (nu bij geen enkele voorstelling).
  *
  * Het productienummer in de eyebrow is AFGELEID (composables/useProductions).
+ *
+ * FOTOGALERIJ (EventGallery): de eerste galerij uit de WordPress-content,
+ * daar uit de lopende tekst gehaald. Bij een AFGELOPEN voorstelling direct na
+ * de hero (de foto's zijn dan de hoofdzaak), bij een KOMENDE na "Over de
+ * voorstelling"/Praktisch. "Afgelopen" = `isUpcoming`, dezelfde bron als de
+ * tabs op /uitvoeringen. Blijft er na het weghalen geen tekst over, dan valt
+ * de kop "Over de voorstelling" weg.
  */
 const route = useRoute()
 const slug = computed(() => String(route.params.slug ?? ''))
@@ -87,12 +94,20 @@ useWpSeo({
       </div>
     </section>
 
-    <section class="about" aria-labelledby="over-de-voorstelling">
+    <EventGallery
+      v-if="event.gallery.length && !event.isUpcoming"
+      :items="event.gallery"
+      :title="event.title"
+      eager
+    />
+
+    <section class="about" :aria-labelledby="event.isEmpty ? undefined : 'over-de-voorstelling'">
       <div class="about__inner">
         <div class="about__text">
-          <EyebrowLabel id="over-de-voorstelling" tag="h2">Over de voorstelling</EyebrowLabel>
-          <WpContent v-if="!event.isEmpty" :html="event.html" />
-          <p v-else class="about__empty">Deze voorstelling heeft geen tekstuele inhoud.</p>
+          <template v-if="!event.isEmpty">
+            <EyebrowLabel id="over-de-voorstelling" tag="h2">Over de voorstelling</EyebrowLabel>
+            <WpContent :html="event.html" />
+          </template>
           <div>
             <BamButton to="/uitvoeringen" variant="secondary">Alle uitvoeringen</BamButton>
           </div>
@@ -116,6 +131,12 @@ useWpSeo({
         </aside>
       </div>
     </section>
+
+    <EventGallery
+      v-if="event.gallery.length && event.isUpcoming"
+      :items="event.gallery"
+      :title="event.title"
+    />
   </article>
 </template>
 
@@ -263,10 +284,6 @@ h1 {
   font-size: 19px;
   line-height: 1.8;
   color: var(--bam-body);
-}
-
-.about__empty {
-  margin: 0;
 }
 
 .practical {

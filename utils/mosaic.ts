@@ -64,28 +64,85 @@ export function planMosaic(orientations: Orientation[], cols: number, { hero = t
     hero && i === 0 && cols >= 2 ? { c: 2, r: 2 } : o === 'portrait' ? { c: 1, r: 2 } : { c: 1, r: 1 },
   )
 
-  let { rows, holes } = simulate(spans, cols)
-  const ops: TileSpan[] = cols >= 2 ? [{ c: 2, r: 2 }, { c: 2, r: 1 }] : []
+  const base = simulate(spans, cols)
+  if (base.holes === 0 || cols < 2) return { spans, ...base }
 
-  // Gulzig: zoek steeds de wijziging (achteraan beginnend) die de meeste gaten
-  // dicht; stop als niets meer helpt. Galerijen zijn klein, dus dit is goedkoop.
-  for (let guard = 0; holes > 0 && guard < orientations.length * 2; guard++) {
-    let best: { i: number, span: TileSpan, rows: number, holes: number } | null = null
-    for (let i = spans.length - 1; i >= (hero ? 1 : 0); i--) {
-      const current = spans[i]!
-      if (orientations[i] !== 'landscape' || current.c !== 1 || current.r !== 1) continue
-      for (const span of ops) {
-        const trial = spans.map((s, k) => (k === i ? span : s))
+  // Kandidaten: liggende 1×1-tegels (niet de blikvanger), van achter naar
+  // voren — liever onderaan een grotere tegel dan bovenaan.
+  const candidates: number[] = []
+  for (let i = spans.length - 1; i >= (hero ? 1 : 0); i--) {
+    if (orientations[i] === 'landscape') candidates.push(i)
+  }
+  // Volle breedte (1 rij) alleen als laatste redmiddel, bijv. 4 liggende foto's
+  // in 3 kolommen; daar is met 2×1/2×2 geen sluitend raster mogelijk.
+  const ops: TileSpan[] = [{ c: 2, r: 1 }, { c: 2, r: 2 }, ...(cols > 2 ? [{ c: cols, r: 1 }] : [])]
+
+  // Begrensde zoektocht (max. 4 aanpassingen): de eerste oplossing zonder
+  // gaten met zo weinig mogelijk aanpassingen. Een gulzige aanpak bleef
+  // steken (gemeten: 1 gat bij bam-voyage en zo-zonde). Galerijen zijn klein
+  // (≤ ~20 tegels), dus dit blijft een paar duizend simulaties.
+  let best: MosaicPlan = { spans: [...spans], ...base }
+  const search = (start: number, depth: number, current: TileSpan[]): MosaicPlan | null => {
+    if (depth === 0) return null
+    for (let k = start; k < candidates.length; k++) {
+      const i = candidates[k]!
+      for (const op of ops) {
+        if (current[i]!.c !== 1 || current[i]!.r !== 1) continue
+        const trial = current.map((s, n) => (n === i ? op : s))
         const result = simulate(trial, cols)
-        if (result.holes < holes && (!best || result.holes < best.holes)) best = { i, span, ...result }
+        if (result.holes === 0) return { spans: trial, ...result }
+        if (result.holes < best.holes) best = { spans: trial, ...result }
+        const deeper = search(k + 1, depth - 1, trial)
+        if (deeper) return deeper
       }
-      if (best?.holes === 0) break
     }
-    if (!best) break
-    spans[best.i] = best.span
-    rows = best.rows
-    holes = best.holes
+    return null
+  }
+  for (let depth = 1; depth <= 4; depth++) {
+    const found = search(0, depth, spans)
+    if (found) return found
+  }
+  // Geen oplossing gevonden: het plan met de minste gaten.
+  return best
+}
+
+export interface GalleryPlan {
+  /** Volgorde van de foto's (indexen in de invoer); meestal 0..n-1. */
+  order: number[]
+  /** Eén plan per kolomaantal, in de volgorde van `colsList`, op `order`. */
+  plans: MosaicPlan[]
+}
+
+/**
+ * Plant de galerij voor meerdere breakpoints tegelijk, met ÉÉN volgorde voor
+ * allemaal (zichtbare volgorde = DOM-volgorde = lightbox).
+ *
+ * Eerst de volgorde van WordPress. Blijven er gaten (typisch: een staande
+ * foto achteraan — daarna komt niets meer dat een gat kan vullen), dan als
+ * laatste redmiddel één staande foto een paar plekken naar voren; de
+ * blikvanger blijft eerst. Lukt ook dat niet, dan de volgorde met de minste
+ * gaten.
+ */
+export function planGallery(orientations: Orientation[], colsList: number[]): GalleryPlan {
+  const evaluate = (order: number[]) => {
+    const o = order.map((i) => orientations[i]!)
+    const plans = colsList.map((cols) => planMosaic(o, cols))
+    return { order, plans, holes: plans.reduce((sum, p) => sum + p.holes, 0) }
   }
 
-  return { spans, rows, holes }
+  const original = orientations.map((_, i) => i)
+  let best = evaluate(original)
+  if (best.holes === 0) return best
+
+  for (let p = orientations.length - 1; p >= 1; p--) {
+    if (orientations[p] !== 'portrait') continue
+    for (let target = p - 1; target >= 1; target--) {
+      const order = original.filter((i) => i !== p)
+      order.splice(target, 0, p)
+      const result = evaluate(order)
+      if (result.holes === 0) return result
+      if (result.holes < best.holes) best = result
+    }
+  }
+  return best
 }

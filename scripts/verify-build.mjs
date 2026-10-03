@@ -231,7 +231,7 @@ async function main() {
         ` De build is goed, maar WordPress zat tegen zijn limiet aan.`)
     }
     for (const f of optional) {
-      note(`LET OP: optionele bron niet opgehaald (HTTP ${f.status ?? 'n.v.t.'} op ${f.url}) — dat onderdeel is weggelaten, de build is verder goed.`)
+      note(`LET OP: optionele bron niet opgehaald (HTTP ${f.status ?? 'n.v.t.'} op ${f.url}) — de pagina valt terug of laat dat onderdeel weg (zie WARN in de buildlog); de build is verder goed.`)
     }
     if (!hard.length && !recovered.length && !optional.length) note('geen mislukte API-calls tijdens het prerenderen')
   } else {
