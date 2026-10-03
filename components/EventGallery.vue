@@ -31,7 +31,11 @@ const props = withDefaults(
     items: EventGalleryItem[]
     /** Naam van de voorstelling. */
     title: string
-    /** Staat de galerij direct na de hero: blikvanger niet lazy laden. */
+    /**
+     * Staat de galerij direct na de hero: blikvanger niet lazy laden. Bewust
+     * GEEN fetchpriority="high": dan concurreert hij met het affiche in de
+     * hero, dat de LCP is (gemeten: mobiele LCP 3,2 → 4,0 s).
+     */
     eager?: boolean
   }>(),
   { eager: false },
@@ -155,7 +159,6 @@ async function revealAll() {
                   :width="item.width"
                   :height="item.height"
                   :loading="eager && i === 0 ? 'eager' : 'lazy'"
-                  :fetchpriority="eager && i === 0 ? 'high' : undefined"
                   decoding="async"
                 >
               </span>
