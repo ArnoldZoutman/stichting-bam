@@ -95,6 +95,7 @@ onbereikbaar. Zie `MIGRATIE.md`.
 | Geen `@nuxt/image` | Bij een statische build haalt het elke WP-afbeelding op en bewerkt die: precies de belasting waar de host 508 op geeft. `srcset` uit WP + juiste `sizes` |
 | Productienummers (I–VI) afgeleid, chronologisch | Events Manager kent geen productienummer (`composables/useProductions.ts`) |
 | Contactgegevens geparsed uit de tekst van "Over ons" | Geen veld of endpoint; parser is tolerant en laat velden weg als de opmaak verandert (`getContactDetails`) |
+| Homepage-carrousel uit `bam/v1/home-carousel` (mu-plugin op cms), via de prerender-payload; een mislukte call is `optional` en keurt de build niet af | De redactie kiest de foto's in WordPress; een kapotte carrousel mag geen goede site blokkeren. Leeg of mislukt = geen scène |
 | Nieuwsbrief achter `features.newsletter` in `app.config.ts` (uit) | Nog geen nieuwsbrief bevestigd |
 | Contactformulier → Contact Form 7 (REST) op cms; het formulier wordt pas getoond zodra `contactForm.cf7FormId` in `app.config.ts` gevuld is | Geen eigen backend; CF7 stond er al, CORS werkt via WordPress zelf. Inrichting: `wordpress/PLAATSING.md` |
 | GA4 aan/uit via een eigen `GA_MEASUREMENT_ID`, alleen gezet in de deploy-workflow | Alleen de gepubliceerde site mag meten. Bewust NIET afgeleid van `NUXT_PUBLIC_SITE_URL`: die zet je lokaal juist ook op de productie-URL om canonicals/OG/sitemap te controleren, en dan zou die controlebuild echte pageviews sturen |
