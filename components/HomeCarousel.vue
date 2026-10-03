@@ -13,8 +13,20 @@ import type { CarouselItem } from '~/composables/useHomeCarousel'
  *  - knoppen, indicatoren, pijltjestoetsen en een klik op een buurfoto
  *    scrollen de track naar een dia;
  *  - een live-region meldt "Foto 3 van 12: …" na navigatie met knoppen of
- *    toetsenbord (niet bij elke scroll-pixel).
- * Geen autoplay, niet rondlopen, geen libraries.
+ *    toetsenbord (niet bij elke scroll-pixel);
+ *  - automatisch afspelen (zie hieronder).
+ * Handmatige bediening loopt niet rond; geen libraries.
+ *
+ * AUTOMATISCH AFSPELEN (W3C APG-carrouselpatroon, WCAG 2.2.2):
+ *  - elke 6 s naar de volgende dia; na de laatste direct terug naar de eerste;
+ *  - pauzeknop (verplicht: beweging > 5 s moet te pauzeren zijn);
+ *  - tijdelijk gepauzeerd bij hover, focus in de carrousel, buiten beeld of
+ *    een verborgen tabblad;
+ *  - blijvend gestopt zodra de bezoeker zelf navigeert (knop, indicator,
+ *    toets, swipe, klik op een buurfoto) — de pauzeknop start het weer;
+ *  - start niet bij `prefers-reduced-motion: reduce` (wel met de knop);
+ *  - de live-region staat uit tijdens het afspelen, anders meldt een
+ *    schermlezer elke 6 s een nieuwe foto.
  *
  * Dia's buiten de actieve zijn `inert`: niet focusbaar en onzichtbaar voor
  * schermlezers. Een klik daarop komt daardoor bij de track terecht; die zoekt
@@ -50,18 +62,40 @@ function releaseTarget() {
   clearTimeout(releaseTimer)
 }
 
+const AUTOPLAY_MS = 6000
+/** Bezoeker wil afspelen (knop); bij reduced motion standaard uit (zie onMounted). */
+const playing = ref(true)
+const hovered = ref(false)
+const focusedWithin = ref(false)
+const inView = ref(false)
+const pageVisible = ref(true)
+const mounted = ref(false)
+const root = ref<HTMLElement | null>(null)
+let autoplayTimer: ReturnType<typeof setTimeout> | undefined
+
 const count = computed(() => props.items.length)
 const multiple = computed(() => count.value > 1)
 const pad = (n: number) => String(n).padStart(2, '0')
 const counter = computed(() => `${pad(active.value + 1)} / ${pad(count.value)}`)
 const caption = computed(() => props.items[active.value]?.caption ?? '')
+/** Loopt de timer echt? (afspelen gewenst én niets dat tijdelijk pauzeert) */
+const autoplayRunning = computed(() =>
+  mounted.value && multiple.value && playing.value && inView.value && pageVisible.value && !hovered.value && !focusedWithin.value,
+)
 
 function reducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-/** Scroll de track zó dat dia `i` in het midden staat (geen verticale paginasprong). */
-function goTo(i: number, announce = true) {
+/**
+ * Scroll de track zó dat dia `i` in het midden staat (geen verticale
+ * paginasprong). `auto: true` = een stap van het automatisch afspelen: geen
+ * melding, en het afspelen blijft aan. Elke andere aanroep komt van de
+ * bezoeker en stopt het afspelen.
+ */
+function goTo(i: number, { auto = false, instant = false }: { auto?: boolean, instant?: boolean } = {}) {
+  if (!auto) playing.value = false
+  const announce = !auto
   const target = Math.max(0, Math.min(count.value - 1, i))
   const el = slides.value[target]
   const container = track.value
@@ -72,7 +106,7 @@ function goTo(i: number, announce = true) {
   releaseTimer = setTimeout(releaseTarget, 1200)
   container.scrollTo({
     left: el.offsetLeft - (container.clientWidth - el.offsetWidth) / 2,
-    behavior: reducedMotion() ? 'auto' : 'smooth',
+    behavior: instant || reducedMotion() ? 'auto' : 'smooth',
   })
   // Direct bijwerken, niet wachten op de observer: zo kloppen knoppen en
   // melding meteen, ook als de smooth-scroll nog loopt.
@@ -115,10 +149,57 @@ function onTrackClick(event: MouseEvent) {
   if (hit >= 0 && hit !== active.value) goTo(hit)
 }
 
+// ── Automatisch afspelen ────────────────────────────────────────────────
+function scheduleAutoplay() {
+  clearTimeout(autoplayTimer)
+  if (!autoplayRunning.value) return
+  autoplayTimer = setTimeout(() => {
+    const last = active.value >= count.value - 1
+    // Van de laatste terug naar de eerste: springen, niet in één ruk langs alle dia's scrollen.
+    goTo(last ? 0 : active.value + 1, { auto: true, instant: last })
+  }, AUTOPLAY_MS)
+}
+
+// Elke wissel (ook handmatig) of pauze-verandering zet de 6 s opnieuw in.
+watch([autoplayRunning, active], scheduleAutoplay)
+
+function togglePlay() {
+  playing.value = !playing.value
+}
+
+function onFocusOut(event: FocusEvent) {
+  if (!root.value?.contains(event.relatedTarget as Node | null)) focusedWithin.value = false
+}
+
+function onVisibility() {
+  pageVisible.value = document.visibilityState === 'visible'
+}
+
+/** Horizontaal scrollen met trackpad/muiswiel is navigeren; verticaal (de pagina) niet. */
+function onWheel(event: WheelEvent) {
+  if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) releaseTarget()
+}
+
+/** Scrollt de track terwijl er geen programmatische scroll loopt, dan swipet de bezoeker. */
+function onTrackScroll() {
+  if (scrollTarget === null) playing.value = false
+}
+
 let observer: IntersectionObserver | null = null
+let viewObserver: IntersectionObserver | null = null
 
 onMounted(() => {
   if (!track.value || !multiple.value) return
+  if (reducedMotion()) playing.value = false
+  onVisibility()
+  document.addEventListener('visibilitychange', onVisibility)
+  if (root.value) {
+    viewObserver = new IntersectionObserver(([entry]) => {
+      inView.value = Boolean(entry?.isIntersecting)
+    }, { threshold: 0.5 })
+    viewObserver.observe(root.value)
+  }
+  mounted.value = true
   observer = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
@@ -134,17 +215,31 @@ onMounted(() => {
   track.value.addEventListener('scrollend', releaseTarget)
   // Begint de bezoeker zelf te swipen/scrollen, dan telt weer elke dia.
   track.value.addEventListener('pointerdown', releaseTarget)
-  track.value.addEventListener('wheel', releaseTarget, { passive: true })
+  track.value.addEventListener('wheel', onWheel, { passive: true })
+  track.value.addEventListener('scroll', onTrackScroll, { passive: true })
 })
 
 onBeforeUnmount(() => {
   observer?.disconnect()
+  viewObserver?.disconnect()
+  document.removeEventListener('visibilitychange', onVisibility)
   clearTimeout(releaseTimer)
+  clearTimeout(autoplayTimer)
 })
 </script>
 
 <template>
-  <section class="gallery" aria-roledescription="carrousel" :aria-labelledby="titleId" @keydown="onKeydown">
+  <section
+    ref="root"
+    class="gallery"
+    aria-roledescription="carrousel"
+    :aria-labelledby="titleId"
+    @keydown="onKeydown"
+    @mouseenter="hovered = true"
+    @mouseleave="hovered = false"
+    @focusin="focusedWithin = true"
+    @focusout="onFocusOut"
+  >
     <div class="gallery__rays" aria-hidden="true" />
 
     <div class="gallery__inner reveal">
@@ -198,6 +293,17 @@ onBeforeUnmount(() => {
         <div class="meta__right">
           <span class="meta__counter" aria-hidden="true">{{ counter }}</span>
           <template v-if="multiple">
+            <!-- WCAG 2.2.2: automatisch bewegende inhoud moet te pauzeren zijn. -->
+            <button
+              type="button"
+              class="nav-btn"
+              :aria-label="playing ? 'Automatisch afspelen pauzeren' : 'Automatisch afspelen starten'"
+              :aria-controls="trackId"
+              @click="togglePlay"
+            >
+              <svg v-if="playing" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor"><rect x="5" y="4" width="3.5" height="12" /><rect x="11.5" y="4" width="3.5" height="12" /></svg>
+              <svg v-else width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor"><path d="M6 4l10 6-10 6z" /></svg>
+            </button>
             <button
               ref="prevButton"
               type="button"
@@ -237,7 +343,8 @@ onBeforeUnmount(() => {
         />
       </div>
 
-      <p class="visually-hidden" aria-live="polite" aria-atomic="true">{{ announcement }}</p>
+      <!-- Uit tijdens automatisch afspelen (APG): anders elke 6 s een melding. -->
+      <p class="visually-hidden" :aria-live="autoplayRunning ? 'off' : 'polite'" aria-atomic="true">{{ announcement }}</p>
     </div>
   </section>
 </template>
