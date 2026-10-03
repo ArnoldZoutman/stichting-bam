@@ -9,6 +9,7 @@ import type {
   PostCategory,
   PostDocument,
   ContactDetails,
+  CarouselItem,
   EventDocument,
   EventSummary,
   EventListResult,
@@ -21,6 +22,7 @@ import {
   fetchPosts,
   fetchEventBySlug,
   fetchAllEvents,
+  fetchHomeCarousel,
   toResolvedImage,
 } from './wp-client'
 import * as cheerio from 'cheerio'
@@ -342,4 +344,58 @@ export function getContactDetails(): Promise<ContactDetails> {
       throw error
     })
   return contactPromise
+}
+
+// ============================================================================
+// Homepage-carrousel
+// ============================================================================
+
+const str = (v: unknown): string => (typeof v === 'string' ? v : '')
+const posInt = (v: unknown): number => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : 0)
+
+/**
+ * De foto's voor de carrousel, in de volgorde van de redactie.
+ *
+ * Nooit een fout naar de pagina: bij een mislukte call (al vastgelegd als
+ * `optional`, zie fetchHomeCarousel) of een onverwacht antwoord een
+ * waarschuwing in de buildlog en `[]` — de homepage laat de scène dan weg.
+ * Items zonder bruikbare `src`/`width`/`height` vallen eruit; die zouden
+ * layout shift of een kapot beeld geven.
+ */
+export async function getHomeCarousel(): Promise<CarouselItem[]> {
+  let raw: unknown
+  try {
+    raw = await fetchHomeCarousel()
+  } catch (error) {
+    console.warn(`[home-carousel] niet opgehaald, carrousel wordt weggelaten: ${(error as Error)?.message ?? error}`)
+    return []
+  }
+  if (!Array.isArray(raw)) {
+    console.warn('[home-carousel] onverwacht antwoord (geen array), carrousel wordt weggelaten')
+    return []
+  }
+
+  const items: CarouselItem[] = []
+  for (const entry of raw as Record<string, unknown>[]) {
+    const id = posInt(entry?.id)
+    const width = posInt(entry?.width)
+    const height = posInt(entry?.height)
+    const src = str(entry?.src)
+    if (!id || !width || !height || !/^https?:\/\//.test(src)) continue
+    items.push({
+      id,
+      src,
+      srcset: str(entry.srcset),
+      width,
+      height,
+      full: str(entry.full) || src,
+      alt: str(entry.alt).trim(),
+      caption: str(entry.caption).trim(),
+      portrait: height > width,
+    })
+  }
+  if (items.length < raw.length) {
+    console.warn(`[home-carousel] ${raw.length - items.length} item(s) overgeslagen wegens ontbrekende src/width/height`)
+  }
+  return items
 }

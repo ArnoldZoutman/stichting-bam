@@ -52,7 +52,12 @@ const externalFetch = $fetch as unknown as {
  * elkaar af; een incidentele 5xx of 429 mag de build niet stilletjes uithollen.
  * Echte clientfouten (404, 400) worden niet opnieuw geprobeerd.
  */
-async function withRetry<T>(fn: () => Promise<T>, attempts = 4, url = '(onbekend)'): Promise<T> {
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  attempts = 4,
+  url = '(onbekend)',
+  { optional = false }: { optional?: boolean } = {},
+): Promise<T> {
   let lastError: unknown
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
@@ -68,12 +73,15 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 4, url = '(onbekend
       // straks opvangt. Zie server/utils/build-report.ts.
       const message = (error as { message?: string })?.message ?? String(error)
       if (fatal || lastAttempt) {
-        recordApiFailure({ url, status, message, severity: 'failed' })
+        recordApiFailure({ url, status, message, severity: optional ? 'optional' : 'failed' })
       } else {
         // Deze poging mislukte, maar we gaan het opnieuw proberen. Slaagt dat,
         // dan is het geen bouwfout — wel het vastleggen waard, zodat zichtbaar
         // blijft hoe dicht de build bij de limiet van de WP-host zat.
-        recordApiFailure({ url, status, message, severity: 'recovered' })
+        // Niet voor optionele bronnen: daar volgt bij definitief falen één
+        // `optional`-melding, en tussenpogingen zouden in de faal-check
+        // misleidend als "WordPress zat tegen zijn limiet" verschijnen.
+        if (!optional) recordApiFailure({ url, status, message, severity: 'recovered' })
         // 500 ms, 1 s, 2 s. Een 508/429 van shared hosting is een throttle; die
         // heeft echt even tijd nodig voordat een nieuwe poging zin heeft.
         await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt))
@@ -105,6 +113,18 @@ async function wpFetchWithHeaders<T>(
 ): Promise<{ data: T; headers: Headers }> {
   const res = await withRetry(() => externalFetch.raw<T>(`${wpBase()}${path}`, { query }), 4, `${wpBase()}${path}`)
   return { data: res._data as T, headers: res.headers }
+}
+
+/**
+ * De homepage-carrousel (`bam/v1/home-carousel`, mu-plugin
+ * bam-home-carousel.php op cms.stichting-bam.nl). OPTIONEEL: mislukt deze
+ * call, dan wordt dat als `optional` vastgelegd en keurt de faal-check de
+ * build niet af — de homepage laat de carrouselscène dan weg. Het antwoord
+ * wordt in wp-documents.ts gevalideerd, dus hier bewust `unknown`.
+ */
+export async function fetchHomeCarousel(): Promise<unknown> {
+  const url = `${wpBase()}/bam/v1/home-carousel`
+  return await withRetry(() => externalFetch<unknown>(url), 4, url, { optional: true })
 }
 
 export async function fetchPageBySlug(slug: string): Promise<WpPage | null> {

@@ -40,8 +40,11 @@ export interface ApiFailure {
    *   WordPress-host geeft `508 Loop Detected` onder belasting, en zonder deze
    *   registratie ziet een build waarin elke call twee pogingen nodig had er
    *   precies zo uit als een build waarin niets misging.
+   * `optional` — een call naar een OPTIONELE bron (bijv. de homepage-carrousel)
+   *   is definitief mislukt. De aanroeper laat dat onderdeel weg; de build
+   *   wordt NIET afgekeurd, de faal-check meldt het wel als waarschuwing.
    */
-  severity: 'failed' | 'recovered'
+  severity: 'failed' | 'recovered' | 'optional'
 }
 
 export function recordApiFailure(failure: Omit<ApiFailure, 'at'>): void {
