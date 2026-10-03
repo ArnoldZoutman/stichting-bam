@@ -78,7 +78,10 @@ async function withRetry<T>(
         // Deze poging mislukte, maar we gaan het opnieuw proberen. Slaagt dat,
         // dan is het geen bouwfout — wel het vastleggen waard, zodat zichtbaar
         // blijft hoe dicht de build bij de limiet van de WP-host zat.
-        recordApiFailure({ url, status, message, severity: 'recovered' })
+        // Niet voor optionele bronnen: daar volgt bij definitief falen één
+        // `optional`-melding, en tussenpogingen zouden in de faal-check
+        // misleidend als "WordPress zat tegen zijn limiet" verschijnen.
+        if (!optional) recordApiFailure({ url, status, message, severity: 'recovered' })
         // 500 ms, 1 s, 2 s. Een 508/429 van shared hosting is een throttle; die
         // heeft echt even tijd nodig voordat een nieuwe poging zin heeft.
         await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt))

@@ -14,6 +14,8 @@ import { siteFacts } from '~/config/site'
  *
  *  - Volgende voorstelling: eerstvolgende komende voorstelling (nu geen).
  *  - Terugblik: de meest recente voorbije voorstelling.
+ *  - In beeld: de fotocarrousel uit WordPress (Weergave → Homepage-carrousel).
+ *    Lege lijst of mislukte call → geen scène (zie getHomeCarousel).
  *  - Uitvoeringen: de drie meest recente voorstellingen. De faal-check eist
  *    links naar min(3, n) voorstellingen op deze pagina.
  *  - Nieuws: de drie nieuwste berichten. Staat niet in het prototype, maar de
@@ -44,6 +46,8 @@ const { data: events } = await useFetch('/api/events', {
   // server/utils/build-report.ts en laat de faal-check falen.
   default: () => ({ upcoming: [], past: [] }),
 })
+
+const { data: carousel } = await useHomeCarousel()
 
 const { data: overOns } = await useFetch('/api/page/over-ons', {
   key: 'page-over-ons-intro',
@@ -82,6 +86,7 @@ const scenes = computed(() => {
   const list: string[] = []
   if (nextEvent.value) list.push('next')
   if (lastEvent.value) list.push('retro')
+  if (carousel.value.length) list.push('gallery')
   if (recentEvents.value.length) list.push('program')
   if (posts.value.items.length) list.push('news')
   list.push('about')
@@ -179,6 +184,13 @@ useWpSeo({
         <BamButton :to="`/uitvoeringen/${lastEvent.slug}`" variant="secondary">Meer informatie</BamButton>
       </div>
     </section>
+
+    <!-- In beeld: fotocarrousel -->
+    <HomeCarousel
+      v-if="carousel.length"
+      :items="carousel"
+      :index="scenes.indexOf('gallery') + 1"
+    />
 
     <!-- Uitvoeringen -->
     <section v-if="recentEvents.length" id="uitvoeringen" class="program" aria-labelledby="programma-titel">
