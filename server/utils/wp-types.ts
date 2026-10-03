@@ -248,8 +248,28 @@ export interface CarouselItem {
   portrait: boolean
 }
 
+/**
+ * Eén foto uit de galerij van een evenement (eerste galerij in de content,
+ * zie server/utils/wp-gallery.ts). `width`/`height` zijn die van het
+ * origineel (voor beeldverhouding en oriëntatie), `src` is het formaat
+ * `large` als dat bestaat. Alt en caption zijn platte tekst uit WordPress.
+ */
+export interface EventGalleryItem {
+  id: number | null
+  src: string
+  srcset: string
+  width: number
+  height: number
+  alt: string
+  caption: string
+  orientation: 'landscape' | 'portrait'
+}
+
 /** Wat `/api/event/<slug>` teruggeeft aan de detailpagina. */
-export interface EventDocument extends ContentDocument, EventFields {}
+export interface EventDocument extends ContentDocument, EventFields {
+  /** Foto's van de eerste galerij; die galerij is uit `html` weggehaald. */
+  gallery: EventGalleryItem[]
+}
 
 /** Wat `/api/events` teruggeeft aan het agenda-overzicht. */
 export interface EventSummary extends EventFields {

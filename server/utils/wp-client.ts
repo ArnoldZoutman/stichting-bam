@@ -18,7 +18,7 @@ function wpBase(): string {
 /** Alleen deze velden opvragen scheelt fors in responsegrootte. */
 const DOC_FIELDS = 'id,slug,link,date,modified,title,content,excerpt,parent,featured_media'
 const LIST_FIELDS = 'id,slug,link,date,modified,title,excerpt,featured_media,_links,_embedded'
-const MEDIA_FIELDS = 'id,slug,alt_text,mime_type,source_url,media_details'
+const MEDIA_FIELDS = 'id,slug,alt_text,mime_type,source_url,media_details,caption'
 
 /** De `event_*`-velden komen van `wordpress/bam-events-rest.php`, niet van de CPT zelf. */
 const EVENT_EXTRA_FIELDS =
@@ -211,7 +211,10 @@ export async function fetchAllEventSlugs(): Promise<Pick<WpEvent, 'slug' | 'modi
 const mediaCache = new Map<number, WpMedia | null>()
 
 /** Haalt meerdere media-items in één request op (`include=1,2,3`). */
-export async function fetchMediaByIds(ids: number[]): Promise<Map<number, WpMedia>> {
+export async function fetchMediaByIds(
+  ids: number[],
+  { optional = false }: { optional?: boolean } = {},
+): Promise<Map<number, WpMedia>> {
   const result = new Map<number, WpMedia>()
   const missing: number[] = []
 
@@ -221,20 +224,22 @@ export async function fetchMediaByIds(ids: number[]): Promise<Map<number, WpMedi
     else if (cached !== null) result.set(id, cached)
   }
 
-  if (missing.length) {
+  // WordPress geeft hooguit 100 items per verzoek; een galerij past daar ruim
+  // in, maar splits voor de zekerheid. `optional`: een mislukt verzoek keurt
+  // de build niet af (zie withRetry); de aanroeper valt terug op de HTML.
+  for (let start = 0; start < missing.length; start += 100) {
+    const chunk = missing.slice(start, start + 100)
     try {
-      const items = await wpFetch<WpMedia[]>('/wp/v2/media', {
-        include: missing.join(','),
-        per_page: missing.length,
-        _fields: MEDIA_FIELDS,
-      })
+      const url = `${wpBase()}/wp/v2/media`
+      const query = { include: chunk.join(','), per_page: chunk.length, orderby: 'include', _fields: MEDIA_FIELDS }
+      const items = await withRetry(() => externalFetch<WpMedia[]>(url, { query }), 4, url, { optional })
       for (const item of items) {
         mediaCache.set(item.id, item)
         result.set(item.id, item)
       }
       // De API antwoordde: ID's die er niet in zaten bestaan echt niet. Die
       // mogen negatief gecachet worden.
-      for (const id of missing) if (!result.has(id)) mediaCache.set(id, null)
+      for (const id of chunk) if (!result.has(id)) mediaCache.set(id, null)
     } catch {
       // De API antwoordde NIET. Bewust niets cachen: een tijdelijke storing
       // negatief cachen zou de afbeelding voor de rest van het proces laten
