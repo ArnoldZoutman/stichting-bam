@@ -2,7 +2,7 @@
 import type { EventGalleryItem } from '~~/server/utils/wp-types'
 
 /**
- * Fotogalerij op de voorstellingspagina ("Beeld · Fotogalerij").
+ * Fotogalerij op de voorstellingspagina ("Beeld" / "Doek op · Een kijkje op het podium").
  *
  * De foto's komen uit de EERSTE galerij in de content van het evenement
  * (WordPress); die is daar uit de lopende tekst gehaald.
@@ -128,7 +128,7 @@ async function revealAll() {
       <div class="gallery-section__head">
         <div class="gallery-section__titles">
           <EyebrowLabel rule>Beeld</EyebrowLabel>
-          <h2 id="fotogalerij-titel">Fotogalerij</h2>
+          <h2 id="fotogalerij-titel">Doek op · Een kijkje op het podium</h2>
         </div>
         <p class="gallery-section__count">{{ countLabel }}</p>
       </div>
@@ -208,6 +208,7 @@ async function revealAll() {
 .gallery-section__head h2 {
   margin: 0;
   font-size: clamp(36px, 4.5vw, 56px);
+  line-height: 1.1;
 }
 
 .gallery-section__count {
